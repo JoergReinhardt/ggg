@@ -1,0 +1,16 @@
+
+Operators
+  
+ | ·   | function composition    | args→f→g→f(g(args))→result   |
+ | $   | function application    | low order of precedence      |
+ | →   | argument/result passing | all calls are curryed        |
+ | >>> | flip · composition      |                              |
+ | *** | map over two arguments  | λ.f.g.x.y→f.x g.y            |
+ | &&& |                         |                              |
+ | +++ | map over both sides     |                              |
+ | \\\ |                         |                              |
+ | >>= | monadic bind            |                              |
+ | =<< | reverse monadic bind    | reverses the arguments order |
+
+ 
+
