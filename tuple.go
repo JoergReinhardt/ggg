@@ -1,7 +1,5 @@
 package main
 
-type ()
-
 //// COUPLED PAIR
 ///
 // PAIR COMPOSITION ITERATION & TRAVERSAL (happy, happy, joy, joy!)
@@ -17,16 +15,53 @@ type ()
 // pair, missing its second half.
 
 type (
-	LinkUnit    func(Lnk, ...Item) Lnk
-	LinkPure    func(Lnk, ...Item) (Item, Lnk)
-	LinkFMap    func(Lnk, Fnc) Lnk
-	LinkFoldFnc func(Lnk, Item, ...Item) (Item, Item, Lnk)
-	LinkFoldF   func(Lnk, Item, LinkFoldFnc) Lnk
+	Lnk  func() (Item, Item) // (a,b)
+	Lns  []Lnk               // []KeyVal
+	Weak func() (Item, Weak)
 )
 
-func Couple(l, r Item) Lnk { return Lnk(func() (Item, Item) { return l, r }) }
+func LinkIdentity() Lnk { return Lnk(func() (l, r Item) { return nil, nil }) }
+func EmptyLink() Lnk    { return Lnk(func() (l, r Item) { return nil, nil }) }
 
-func CoupleLnk(l Lnk, args ...Item) Lnk {
+func (t Lnk) Ident() Item         { return t }
+func (t Lnk) Left() Item          { l, _ := t(); return l }
+func (t Lnk) Right() Item         { _, r := t(); return r }
+func (t Lnk) Swap() Lnk           { l, r := t(); return Link(r, l) }
+func (t Lnk) Empty() Bool         { l, r := t(); return l == nil && r == nil }
+func (t Lnk) Sequence() Seq       { l, r := t(); return Seq{l, r} }
+func (u Lnk) Type() Identity      { return Pair }
+func (u Lnk) LeftType() Identity  { return u.Left().Type() }
+func (u Lnk) RightType() Identity { return u.Right().Type() }
+func (u Lnk) Signature() T        { f, s := u(); return T{Pair, T{f.Type(), s.Type()}} }
+func (u Lnk) Symbol() Str         { return u.Left().Type().Symbol() }
+
+////////////////////////////////////////////////////////////////////////////////
+func (l Lns) Ident() Item         { return l }
+func (l Lns) Type() Identity      { return Pair | Sequence }
+func (l Lns) Empty() Bool         { return len(l) == 0 }
+func (l Lns) LeftType() Identity  { return l.Head().LeftType() }
+func (l Lns) RightType() Identity { return l.Head().RightType() }
+func (l Lns) Signature() T        { return T{Sequence, T{Pair, T{l.LeftType(), l.RightType()}}} }
+func (l Lns) Tail() Lns {
+	if len(l) > 1 {
+		return l[1:]
+	}
+	return []Lnk{Lnk(func() (a, b Item) { return nil, nil })}
+}
+func (l Lns) Head() Lnk {
+	if len(l) > 0 {
+		return l[0]
+	}
+	return Lnk(func() (a, b Item) { return nil, nil })
+}
+func (l Lns) Symbol() Str {
+	return Str("[(") + l.LeftType().Symbol() + ", " + l.RightType().Symbol() + Str(")]")
+}
+
+////////////////////////////////////////////////////////////////////////////////
+func Link(l, r Item) Lnk { return Lnk(func() (Item, Item) { return l, r }) }
+
+func ComposeL(l Lnk, args ...Item) Lnk {
 
 	f, s := l()
 
@@ -37,16 +72,16 @@ func CoupleLnk(l Lnk, args ...Item) Lnk {
 				if len(args) > 1 {
 					if len(args) > 2 {
 
-						return Couple(f, Couple(s,
-							CoupleLnk(Couple(
+						return Link(f, Link(s,
+							ComposeL(Link(
 								args[0], args[1],
 							), args[2:]...)))
 					}
-					return Couple(f, Couple(s,
-						Couple(args[0], args[1])))
+					return Link(f, Link(s,
+						Link(args[0], args[1])))
 				}
-				return Couple(f, Couple(s,
-					Couple(args[0], nil)))
+				return Link(f, Link(s,
+					Link(args[0], nil)))
 			}
 		}
 
@@ -54,48 +89,36 @@ func CoupleLnk(l Lnk, args ...Item) Lnk {
 			if len(args) > 1 {
 				if len(args) > 2 {
 
-					return Couple(f, CoupleLnk(
-						Couple(args[0], args[1]),
+					return Link(f, ComposeL(
+						Link(args[0], args[1]),
 						args[2:]...))
 				}
-				return Couple(f, Couple(args[0], args[1]))
+				return Link(f, Link(args[0], args[1]))
 			}
-			return Couple(f, Couple(args[0], nil))
+			return Link(f, Link(args[0], nil))
 		}
 	}
 	return l
 }
 
-func (t Lnk) Next() (Item, Iterator) {
-
-	f, s := t()
-
-	if f != nil {
-		if s != nil {
-			return f, Couple(s, nil)
-		}
-		return f, nil
-	}
-	return nil, nil
-}
-func (t Lnk) IteratePairs() (Item, Lnk) {
+func (t Lnk) GeneratePairs() (Item, Lnk) {
 
 	f, p := t()
 
 	if f != nil {
 		if p != nil {
-			if Pair.Contains(p.Type()[0].(Cat)) {
+			if Pair.Contains(p.Type().Signature()[0].(Cat)) {
 				return f, p.(Lnk)
 			}
-			return f, Couple(p, nil)
+			return f, Link(p, nil)
 		}
 		return f, nil
 	}
 	return nil, nil
 }
 
-func (t Lnk) Concat(args ...Item) Iterator { return CoupleLnk(t, args...) }
-func (t Lnk) Cons(args ...Item) (Item, Continue) {
+func (t Lnk) Concat(args ...Item) Lnk { return ComposeL(t, args...) }
+func (t Lnk) Cons(args ...Item) (Item, Cnt) {
 	if len(args) > 0 {
 		return t.Cons(args...)
 	}
@@ -105,35 +128,22 @@ func (t Lnk) Cons(args ...Item) (Item, Continue) {
 func (t Lnk) List() Lst {
 	return Lst(func() (Item, Lst) {
 		f, s := t()
-		return f, Couple(s, nil).List()
+		return f, Link(s, nil).List()
 	})
 }
 
 func MapFLink(l Lnk, f Fnc) Lnk {
-	o, p := l.IteratePairs()
+	o, p := l.GeneratePairs()
 	if p != nil {
-		return Couple(f(o), MapFLink(p, f))
+		return Link(f(o), MapFLink(p, f))
 	}
-	return Couple(f(o), f(p))
+	return Link(f(o), f(p))
 }
-
-func (u Lnk) Type() T      { return T{Pair} }
-func (u Lnk) Signature() T { f, s := u(); return T{Pair, T{f.Type(), s.Type()}} }
-func (u Lnk) Symbol() Str {
-	f, s := u()
-	return Str("(") + f.Type().Symbol() + Str(" ") + s.Type().Symbol() + Str(")")
-}
-func (t Lnk) Ident() Item   { return t }
-func (t Lnk) First() Item   { l, _ := t(); return l }
-func (t Lnk) Second() Item  { _, r := t(); return r }
-func (t Lnk) Swap() Lnk     { l, r := t(); return Couple(r, l) }
-func (t Lnk) Empty() Bool   { l, r := t(); return l == nil && r == nil }
-func (t Lnk) Sequence() Seq { l, r := t(); return Seq{l, r} }
 
 // RIGHT COUPLED PAIR
-func CoupleR(l, r Item) Lnk { return Couple(r, l) }
+func LinkR(l, r Item) Lnk { return Link(r, l) }
 
-func CoupleRLnk(l Lnk, args ...Item) Lnk {
+func ComposeR(l Lnk, args ...Item) Lnk {
 
 	f, s := l()
 
@@ -144,14 +154,14 @@ func CoupleRLnk(l Lnk, args ...Item) Lnk {
 				if len(args) > 1 {
 					if len(args) > 2 {
 
-						return CoupleR(CoupleR(CoupleRLnk(CoupleR(
+						return LinkR(LinkR(ComposeR(LinkR(
 							args[len(args)-2], args[len(args)-1],
 						), args[:len(args)-3]...), f), s)
 					}
-					return CoupleR(f, CoupleR(s, CoupleR(
+					return LinkR(f, LinkR(s, LinkR(
 						args[len(args)-2], args[len(args)-1])))
 				}
-				return CoupleR(f, CoupleR(s, args[len(args)-1]))
+				return LinkR(f, LinkR(s, args[len(args)-1]))
 			}
 		}
 
@@ -159,14 +169,14 @@ func CoupleRLnk(l Lnk, args ...Item) Lnk {
 			if len(args) > 1 {
 				if len(args) > 2 {
 
-					return CoupleRLnk(CoupleRLnk(CoupleRLnk(CoupleR(
+					return ComposeR(ComposeR(ComposeR(LinkR(
 						args[len(args)-2], args[len(args)-1],
 					), args[:len(args)-3]...), f))
 				}
-				return CoupleR(f, CoupleR(args[len(args)-2],
+				return LinkR(f, LinkR(args[len(args)-2],
 					args[len(args)-1]))
 			}
-			return CoupleR(f, CoupleR(nil, args[len(args)-1]))
+			return LinkR(f, LinkR(nil, args[len(args)-1]))
 		}
 	}
 	return l

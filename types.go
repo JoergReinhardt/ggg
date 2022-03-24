@@ -9,309 +9,126 @@ import (
 )
 
 // TYPE CLASSES
-//  haskel like type classes are implemented by golang interface types.
+//  lets keep things as simple as possible:
+type ()
+
+type ()
+
 type (
+	// IDENTITY
+	Identity interface {
+		Item
+		Type() Identity // return parent type
+		Symbol() Str    // subtypes of this type
+		Signature() T   // subtypes of this type
+		Continue(...Item) (Item, Cnt)
+	}
+	// SIGNATURE
+	T []Identity
 	// ITEM
-	//  all objects implement the item interface, which is defined by a
-	//  method to return underlying object identity (its value) and another
-	//  method to reveal the objects internal library type.
 	Item interface {
 		Ident() Item
-		Type() T
+		Type() Identity
 	}
-
-	// TYPE
-	//
-	//  Identity() ParentType|None (root level category → Ident == Identity)
-	//
-	//  Signature() → slice of member element type(s), comma separated for
-	//  tuple types, nested for parametric constructors, both for optional,
-	//  alternative, or otherwise polymorph types.
-	//
-	//  Cons(...Item) (Item, Continue) → data/type constructor
-	Identity interface {
-		Item          // Ident() → particular T & Type() parent T|Empty
-		Signature() T // subtypes of this type
-		Symbol() Str
+	Lifted interface {
+		Map(Fnc) Lifted
 	}
-
-	// SEQUENCE OF TYPE SYMBOLS
-	T []Identity
-	// FUNCTOR INTERFACES]
-	//
-	//  the functor interface:
-	//
-	// ordinary variables are lifted into encapsulated functor exexution
-	// context, by composing them together with some function, that
-	// generates the resulting value from any value assigned to the
-	// variable, to yield a mapped derivate for any possible element of the
-	// variables type, while keeping the referential integrity to the
-	// original instance, by not changing its identity, yet updating the
-	// type of the value to reflect the resulting type.
-	//
-	//    Identity
-	//      fmap id == id
-	//
-	//    Composition
-	//      fmap (f·g) == fmap f · fmap g
-	//
-	//    (<&>) infix operator for fmap
-	//
-	// FUNCTION
-	Fnc        func(...Item) Item
-	ComposeFnc func(f, g Fnc) Fnc
-
-	// COMPOSEABLE
-	ComposeItems func(a, b Item) Composeable
-	Composeable  interface {
-		Compose(Item) Composeable
+	Sequential interface {
+		Len() Int
+		Pick(Int) Item
+		Range(s, e Int) Seq
 	}
-
-	// MAPABLE
-	FMapIter func(Iterator, Fnc) Mapable
-	FMapItem func(Item, Fnc) Mapable
-	FMapFnc  func(f, g Fnc) Mapable
-	Mapable  interface {
-		FMap(Fnc) Mapable
+	Linked interface {
+		Left() Item
+		Right() Item
+		Swap() Lnk
 	}
-	FMap   func(Mapable, Fnc) Mapable
-	ForAll func(Mapable, Fnc) Item
-
-	// TYPE PROJECTED INTO THE FUNCTOR DOMAIN
-	//
-	// every type implementing the
-	// necessary methods can be mapped to the interface type by means of
-	// method expression.
-	FoldF    func(Composeable, ...Item) (Item, Composeable)
-	FoldMap  func(Composeable, FoldF) Foldable
-	Foldable interface {
-		Composeable
-		FoldMap(Fnc) Foldable
-		Fold(...Item) (Item, Foldable)
+	Listed interface {
+		Next() (Item, Lst)
+		Head() Item
+		Tail() Lst
 	}
-	FoldFnc func(Foldable, ...Item) (Item, Foldable)
-	ForEach func(Foldable, ...Item) Foldable
-	ForAny  func(Foldable, ...Item) Item
-
-	// APPLICATIVE
-	//
-	//   data MyState = MyState {arg1 :: Foo, arg2 :: Bar, arg3 :: Baz}
-	//
-	//   produceFoo :: Applicative f => f Foo
-	//   produceBar :: Applicative f => f Bar
-	//   produceBaz :: Applicative f => f Baz
-	//
-	//   mkState :: Applicative f => f MyState
-	//   mkState = MyState <$> produceFoo <*> produceBar <*> produceBaz
-	FApply     func(Foldable, Fnc) Applicable
-	Applicable interface {
-		Foldable
-		ApplyF(Fnc) Applicable
-		Apply(...Item) (Item, Applicable)
+	Printable interface {
+		Print() Str
 	}
-	ApplyFnc func(Applicable, ...Item) (Item, Applicable)
-	ExecFnc  func(Applicable, ...Item) Applicable // a → fa → fb	    ∷ (<*)
-	EvalFnc  func(Applicable, ...Item) Item       // a → fa → fb → b    ∷ (*>)
-
-	// SIGNATURE TYPE
-	//
-	//  signature returns a slice of types expressing the shape of the
-	//  type, with tuples being comma separated and subtypes being nested.
-	//
-	//    [ElemType<,SecondElemType,…|[SubType<,…>]>]
-
-	// QUALIFIED
-	//  ‥qualified to be equality relation…
-	EqualFnc  func(a, b Item) Bool
 	Qualified interface { // Qualified a
-		Item
 		Equal(Item) Bool // a → a → Bool (True|False)
 	}
-
-	// ORDERED
-	//  ‥ordered by comparison of rank relation…
+	Unique interface {
+		Set(Item) (Item, Bool)
+		Contains(Item) Bool
+		Contained(Item) Bool
+	}
 	Ordered interface { //
 		Qualified
 		Lesser(Item) Bool
 		Greater(Item) Bool
 	}
-
-	// SEQUENCE OF ITEMS
-	Seq []Item // cons∷f(*…)→v|pure∷f(v)→*…|unit∷f(v *ₜ)→v
-	// ENUMERATED
-	//  lists, sequences, type signatures, and all generators in general
-	//  implement iterator.
-	EmptyS     func() []Item
-	Serialize  func(Sequential, ...Item) Sequential
-	Sequential interface {
-		Len() Int
-		Pick(Int) Item
-		Range(s, e Int) Sequential
+	Appendable interface {
+		Append(Item) Appendable
 	}
-	// LINKED PAIR
-	Lnk func() (Item, Item) // (a,b)
-
-	// LINKED LIST
-	Lst func() (Item, Lst) // (x,xs)
-
-	Iterate  func(Iterator) (Item, Iterator)
-	Concat   func(Iterator, ...Item) Iterator
-	Iterator interface {
-		Next() (Item, Iterator)
-		Empty() Bool
+	Composed interface {
+		Compose(Item) Cnt
+		First() Item
+		Second() Item
 	}
-
-	// return and take handle tuple & enum construction. signature length
-	// is known by declaration. arguments are applied one after another to
-	// return fnc, and if validated, are applied to return partially
-	// applied mutuals until all parameters are satisfied, and/or arguments
-	// fail to validate (depends on if the type is additive|exclusive), at
-	// which point a mutual instance, ot nothing is returned as a resulting
-	// value.
-	//
-	// take implementation may also concatenated mutual instance
-	// constructors, suspending evaluation, allowing for type level
-	// operations like redistribution of indeterminism's from 'slice of
-	// undetermined instances' to 'undetermined instance of slice' aka
-	// applicative functor.
-	Return func(Return, T) Mutual          // ← returns current instance ⇒ Mutual|Partial∙Mutual
-	Take   func(Return, T, ...Item) Return // ← concat arguments with instance ⇒ suspended Return construction according to signature
-	Mutual interface {
-		Take(...Item) Return
-		Return() Mutual
+	Applicable interface {
+		FMap(Fnc) App
+		Apply(...Item) (Item, App)
 	}
-
-	// guarded by some praedicate regarding instance values.
-	ConsGuard func(
-		test ReturnBool, // test scrutinizes argument
-		comp BoolOp, // bool operation composes guards
-		prae Item, // praedicate is compared against argument
-	) (Item, Bool, Guard)
-	Guard interface {
-		Guard(...Item) (Item, Bool, Guard)
+	LeftBinding interface {
+		Head() Item
+		Tail() Item
 	}
-	ComposeGuards func(...Guard) Guard
-
-	// CONTINUATION
-	//  implemented by all higher order types
-	ToBeCont     func() Continuation
-	ConcCont     func(i, j Iterator) Continuation
-	Continuation interface {
-		Continue(...Item) (Item, Continue)
+	RightBinding interface {
+		Init() Item
+		Last() Item
 	}
-	Next      func(Continuation, ...Item) Continue // compute continuation, discard value
-	Current   func(Continuation, ...Item) Item     // compute value, discard continuation
-	Suspend   func(Continuation, ...Item) Continuation
-	Construct func(Continuation, ...Item) (Item, Continuation) // continuation constructor
-	Continue  func(...Item) (Item, Continue)                   // continuation closure
-
-	// MONOID
-	//  instances of monoidal type can be concatenated, or accumulated with
-	//  other instances of the same type… i.e.: Lists can be concatenated,
-	//  to return another lists, numbers be added and/or multiplied, to
-	//  return another number of the same type.
-	//
-	//  monoidal types adhere to monoid laws:
-	//
-	//    (x <> y) <> z = x <> (y <> z) -- associative
-	//    mempty <> x = x               -- left identity
-	//    x <> mempty = x               -- right identity
-	//
-	Modal interface {
-		Ordered
-		Min() Int
+	Zipped interface {
+		LeftBinding
+		RightBinding
+		Progress() Cnt
+		Regress() Cnt
+	}
+	Constructor interface {
+		Item
+		Continue(...Item) (Item, Cnt)
+	}
+	UpperBound interface {
 		Max() Int
-		Unit() Item      // [a] ↔ a
-		EmptyMod() Modal // _ → [ ]
 	}
-
-	GuardTake func(Guard, Take) Take
-
+	LowerBound interface {
+		Min() Int
+	}
+	Limitet interface {
+		UpperBound
+		LowerBound
+	}
+	Nullable interface {
+		Zero() Item
+	}
+	Modal interface { // Category∷Monoid
+		Concat(Item) Item // [a] ↔ a
+	}
 	Traversable interface { // Monoid a
-		Modal
-		Foldable
-		Traverse(Fnc) Traversable
-		Serialize(Fnc) Sequential
+		Traverse(Fnc) Cnt
+		Serialize(Fnc) Seq
+	}
+	Monoton interface {
+		Bind(Monoton) Cnt
 	}
 
-	// MONADIC
-	//
-	Pure    func(Monadic, ...Item) Monadic
-	Bind    func(Fnc, Applicable, Applicable) Monadic // compose monadic operations
-	Monadic interface {
-		Applicable       // PureA == ReturnM
-		Then(Item) Item  // forall a b·ma → mb → mb → b ∷ (>>)
-		Do(Item) Monadic // forall a → ma → mb		 ∷ (<<)
-	}
-
-	StateFnc func(Stateful, ...Item) (Item, Stateful)
+	StateFnc func(Stateful, ...Item) (Item, Cnt)
 	Stateful interface {
-		Monadic
-		Run(...Item) (Item, StateFnc)
+		Monoton
+		Run(...Item) (Item, Cnt)
 	}
 
-	// CATEGORY LABLE
+	// IDENTITY LABLE TYPES
 	Index Int
 	Flag  Unt
 	Name  Str
 )
-
-func IndexFromFlag(f Flag) Index  { return Index(f.Len()) }
-func (i Index) Ident() Item       { return i }
-func (i Index) Type() T           { return T{} }
-func (i Index) Signature() T      { return make(T, 0, int(i)) }
-func (i Index) Symbol() Str       { return Str("[" + fmt.Sprintf("%d", int(i)) + "]") }
-func (i Index) FtoI(f Flag) Index { return Index(f.Len()) }
-func (i Index) Flag() Flag        { return Flag(1 << i) }
-func (i Index) Cons(args ...Item) (Item, Continue) {
-	if len(args) > 0 {
-		// multiple arguments…
-		if len(args) > 1 {
-			// ‥equal in magnitude to cardinality of index…
-			if len(args) == int(i)+1 {
-				// ‥assume this to be an order to construct
-				// slice of indices that equals cardinality of
-				// index and number of parameters in length,
-				// from arguments passed. (i.e. make shur the
-				// exact number expected gets taken)
-				return Seq(args), nil
-			}
-			// ‥requested magnitude is over satisfied…
-			if len(args) > int(i)+1 {
-				// ‥take requested number of arguments as
-				// result and continue on remaining arguments.
-				return Seq(args[:int(i)+1]), Seq(args[int(i)+1:]).Cons
-			}
-			// ‥requested magnitude has not been satisfied (yet)…
-			return nil, Seq(args).Cons
-		}
-		// single argument expected to be of type index…
-		if idx, ok := args[0].(Index); ok {
-			// which turns out to be of type index, gets returned,
-			// no continuation.
-			return idx, nil
-		}
-		// or type flag…
-		if flg, ok := args[0].(Flag); ok {
-			if flg.Composed() {
-				if idx := Index(magnitude(flg)); idx == i {
-					return idx, nil
-				}
-			}
-			if idx := Index(cardinality(flg)); idx == i {
-				return idx, nil
-			}
-		}
-		return nil, Seq(args).Cons
-	}
-	return i, (i + 1).Cons
-}
-
-// Contain(...Type) Type ∷ (T₁|T₂|…|Tₙ)|(T₁ T₂ … Tₙ)
-//
-//  construct type container for sum, or product types, defined by type
-//  constructors passed as arguments to be contained.
-func Contain(fs ...Identity) Identity { return T(fs) }
 
 //////////////////////////////////////////////////////
 //// SIGNATURE
@@ -324,27 +141,63 @@ func (s T) Ident() Item { return s }
 //
 //  type returns signatures first element, if there is one, or nil, if this is
 //  the empty signature.
-func (s T) Type() T {
-	if len(s) > 0 {
-		return T{s[0]}
-	}
-	return T{None}
+func (s T) Type() Identity {
+	if len(s) > 0 { // T[a,…] ⇔ T a
+		return s[0]
+	} // T[ ] ⇔ nil a
+	return nil
 }
 func (s T) Len() Int { return Int(len(s)) }
 
 // Signature·Signature → Type
-//
-// signature returns either the remainder of elements following the first
-// element, wrapped in a signature in case a single element remains and an
-// empty signature in case there isn't a remainder.
 func (s T) Signature() T {
-	if len(s) > 0 {
-		if len(s) > 1 {
+	if len(s) > 1 {
+		if len(s) > 2 {
 			return T(s[1:])
 		}
-		return T{s[0]}
+		return T{s[1]}
 	}
 	return T{}
+}
+
+// fold	    ∷ a → b → b
+// f a b    = b
+// f a _    = b
+// f _ b|_  = _
+
+// concat   ∷ a → a → a
+// c (a:as) = a
+// c a a    = a
+// c _ as   = a
+// c a _    = (a → a)
+// c _ a    = (a → a)
+
+// FoldMap  ∷ b & fold $ concat $ a * a|(a:as)
+func (s T) Continue(args ...Item) (i Item, c Cnt) {
+	if len(args) > 0 {
+		a := args[0]
+		if len(s) > 0 {
+			b := s[0]
+		}
+	}
+	return i, c
+}
+
+// Signature·Sequence → Sequence
+//
+//  sequence transforms the type fields of signatue, to instances of ident and
+//  wraps them in a flat sequence.
+func (s T) Sequence() Seq {
+	c := make(Seq, 0, len(s))
+	for _, e := range s {
+		c = append(c, e)
+	}
+	return c
+}
+func (s T) List() Lst {
+	return Lst(func() (Item, Lst) {
+		return s.First(), s.Remainder().List()
+	})
 }
 
 // Signature·Empty → Bool
@@ -367,20 +220,11 @@ func (s T) Paired() Bool { return len(s) == 2 }
 // empty praedicate returns true, if signature contains more then two elements.
 func (s T) Many() Bool { return len(s) > 2 }
 
-// Signature·Iterate → Identity Type
+// Signature·Generate → Identity Type
 //
 //  iterate yields first element of signature, or nil, for the first field of
 //  the return value pair and a list of remaining elements for the second
 //  field.
-func (s T) Next() (Item, Iterator) {
-	if len(s) > 0 {
-		if len(s) > 0 {
-			return s[0], s[1:]
-		}
-		return s[0], T{}
-	}
-	return T{}, T{}
-}
 
 // Signature·First → None|Identity
 //
@@ -393,7 +237,20 @@ func (s T) First() Item {
 	}
 	return T{}
 }
-func (s T) Remaining() T {
+
+// Signature·Second → None|Identity|Identity.Type
+//
+//  second element is either empty, in which case nil is returned, a single
+//  type element, which gets returned as such, or multiple elements, wich will
+//  be returned as a new signature expressing the subtype of the type yielded
+//  by the First() method.
+func (s T) Second() Item {
+	if len(s) > 1 {
+		return s[1]
+	}
+	return T{}
+}
+func (s T) Remainder() T {
 	if len(s) > 1 {
 		return T{s[1:]}
 	}
@@ -412,31 +269,6 @@ func (s T) Preceding() T {
 	return T{}
 }
 
-// Signature·Second → None|Identity|Identity.Type
-//
-//  second element is either empty, in which case nil is returned, a single
-//  type element, which gets returned as such, or multiple elements, wich will
-//  be returned as a new signature expressing the subtype of the type yielded
-//  by the First() method.
-func (s T) Second() Item {
-	if len(s) > 1 {
-		return s[1]
-	}
-	return T{}
-}
-
-// Signature·Sequence → Sequence
-//
-//  sequence transforms the type fields of signatue, to instances of ident and
-//  wraps them in a flat sequence.
-func (s T) Sequence() Seq {
-	c := make(Seq, 0, len(s))
-	for _, e := range s {
-		c = append(c, e)
-	}
-	return c
-}
-
 // Signature·Flip → Sequence
 //
 //  flip returns signatures fields converted to instances of ident and in
@@ -451,7 +283,7 @@ func (s T) Flip() T {
 // Signature·Labels → [String]
 //
 //  labels returns signature fields printable symbols.
-func (s T) Labels() []Str {
+func (s T) Symbols() []Str {
 	var names = make([]Str, 0, len(s))
 	for _, t := range s.Signature() {
 		names = append(names, t.(Identity).Symbol())
@@ -474,7 +306,7 @@ func (s T) strings() []string {
 //
 //  symbol yields printable representation of this signature.
 func (s T) Symbol() Str {
-	if o, _ := Option.Cons(s.Type()); o != nil {
+	if o, _ := Optional.Continue(s.Type()); o != nil {
 		if len(s.Signature()) > 0 {
 			return o.Type().Signature()[0].Symbol() + Str("|⊥")
 		}
@@ -492,24 +324,19 @@ func (s T) Symbol() Str {
 	return s.Type().Symbol()
 }
 
-// Signature·Cons → Identity Composed
-//
-//  safely return first two elements as single element and composit of the
-//  remaining elements in signature.
-func (s T) Cons(args ...Item) (i Item, c Continue) { return i, c }
+////////////////////////////////////////////////////////////////////////////////
+/// INDEX
+func IndexFromFlag(f Flag) Index                      { return Index(f.Len()) }
+func (i Index) Ident() Item                           { return i }
+func (i Index) Type() Identity                        { return nil }
+func (i Index) Signature() T                          { return T{i, Integer} }
+func (i Index) Symbol() Str                           { return Str("[" + fmt.Sprintf("%d", int(i)) + "]") }
+func (i Index) FtoI(f Flag) Index                     { return Index(f.Len()) }
+func (i Index) Flag() Flag                            { return Flag(1 << i) }
+func (a Index) Continue(args ...Item) (i Item, c Cnt) { return i, c }
 
-func (f Take) Type() T     { return }
-func (f Take) Ident() Item { return }
-
-func (f Return) Type() T     { return }
-func (f Return) Ident() Item { return }
-
+////////////////////////////////////////////////////////////////////////////////
 // NAME
-//
-//  name may be the name of a composed type.  composed names are delimited by
-//  an delimiter and|or whitespace.  splitName splits composed names
-//  accordingly and strips delimiters and whitespaces in the process, to return
-//  a slice of string utilized by name methods.
 func splitName(name Name) (names []string) {
 	var s = string(name)
 	switch {
@@ -565,11 +392,11 @@ func splitName(name Name) (names []string) {
 	return names
 }
 
-func (n Name) Ident() Item  { return n }
-func (n Name) Type() T      { return T{n} }
-func (n Name) Signature() T { return T{Category, n} }
-func (n Name) Symbol() Str  { return Str(n) }
-func (n Name) Atom() Bool   { return !n.Composed() }
+func (n Name) Ident() Item    { return n }
+func (n Name) Type() Identity { return nil }
+func (n Name) Signature() T   { return T{n, String} }
+func (n Name) Symbol() Str    { return Str(n) }
+func (n Name) Atom() Bool     { return !n.Composed() }
 func (n Name) Composed() Bool {
 	return Bool(strings.ContainsAny(string(n), "·|,.; "))
 }
@@ -626,7 +453,7 @@ func (n Name) Len() int {
 //  instanciate type & either nil if single argument was given, or succeeding
 //  arguments enclosed in a continuation constructor, in case multiple
 //  arguments where passed.
-func (n Name) Cons(args ...Item) (Item, Continue) {
+func (n Name) Continue(args ...Item) (Item, Cnt) {
 	if len(args) > 0 {
 		// validate first argument to be either category, or class
 		// is not contained in n, or no label at all → return nil and
@@ -634,7 +461,7 @@ func (n Name) Cons(args ...Item) (Item, Continue) {
 		return nil, Seq(args).Cons
 	}
 	// empty call → name & continuation
-	return n, n.Cons
+	return n, n.Continue
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -680,8 +507,8 @@ func split(t Flag) []Flag {
 	return s
 }
 
-func (f Flag) Ident() Item { return f }
-func (f Flag) Type() T     { return T{f} }
+func (f Flag) Ident() Item    { return f }
+func (f Flag) Type() Identity { return nil }
 func (f Flag) Signature() T {
 	if f.Atom() {
 		return T{f}
@@ -710,7 +537,7 @@ func (f Flag) Split() T {
 	}
 	return T{f}
 }
-func (f Flag) Cons(args ...Item) (i Item, c Continue) {
+func (f Flag) Continue(args ...Item) (i Item, c Cnt) {
 	if len(args) > 0 {
 		// validate first argument to be a flag…
 		if flag, ok := args[0].(Flag); ok {
@@ -719,13 +546,13 @@ func (f Flag) Cons(args ...Item) (i Item, c Continue) {
 				// ‥construct an instance of the type expressed
 				// in first argument & use its constructor to
 				// parameterize remaining arguments.
-				if i, c = f.Cons(flag); i != nil {
-					return i, Continue(func(next ...Item) (Item, Continue) {
+				if i, c = f.Continue(flag); i != nil {
+					return i, Cnt(func(next ...Item) (Item, Cnt) {
 						if len(next) > 0 {
-							return i.(Flag).Cons(
+							return i.(Flag).Continue(
 								append(args, next...)...)
 						}
-						return i.(Flag).Cons(args...)
+						return i.(Flag).Continue(args...)
 					})
 				}
 				// ‥argument is a flag not contained in f → no
@@ -743,13 +570,13 @@ func (f Flag) Cons(args ...Item) (i Item, c Continue) {
 		// first argument did not validate as flag and|or instance
 		// construction failed → don't return identity, continue with
 		// arguments.
-		return nil, Seq(args).Cons
+		return nil, Seq(args).Continue
 
 	}
 	// empty call on atomic flag → as such and it's continuation
 	if f.Atom() {
-		return f, f.Cons
+		return f, f.Continue
 	}
 	// empty call on composed flag → split and continue on signature
-	return f, f.Cons
+	return f, f.Continue
 }

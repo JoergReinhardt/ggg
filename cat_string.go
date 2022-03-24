@@ -8,9 +8,9 @@ func _() {
 	// An "invalid array index" compiler error signifies that the constant values have changed.
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
-	_ = x[Class-1]
-	_ = x[Data-2]
-	_ = x[Function-4]
+	_ = x[Function-1]
+	_ = x[Class-2]
+	_ = x[Data-4]
 	_ = x[List-8]
 	_ = x[Sequence-16]
 	_ = x[Pair-32]
@@ -18,37 +18,39 @@ func _() {
 	_ = x[Record-128]
 	_ = x[Conditional-256]
 	_ = x[Comparative-512]
-	_ = x[Option-1024]
-	_ = x[Choice-2048]
+	_ = x[Choice-1024]
+	_ = x[Optional-2048]
 	_ = x[Alternative-4096]
-	_ = x[Applicative-8192]
-	_ = x[Functor-16384]
-	_ = x[Monad-32768]
-	_ = x[Error-65536]
+	_ = x[Monoid-8192]
+	_ = x[Monad-16384]
+	_ = x[Arrow-32768]
+	_ = x[Optic-65536]
+	_ = x[Error-131072]
 	_ = x[Nothing-0]
 }
 
-const _Cat_name = "NothingClassDataFunctionListSequencePairTupleRecordConditionalComparativeOptionChoiceAlternativeApplicativeFunctorMonadError"
+const _Cat_name = "NothingFunctionClassDataListSequencePairTupleRecordConditionalComparativeChoiceOptionalAlternativeMonoidMonadArrowOpticError"
 
 var _Cat_map = map[Cat]string{
-	0:     _Cat_name[0:7],
-	1:     _Cat_name[7:12],
-	2:     _Cat_name[12:16],
-	4:     _Cat_name[16:24],
-	8:     _Cat_name[24:28],
-	16:    _Cat_name[28:36],
-	32:    _Cat_name[36:40],
-	64:    _Cat_name[40:45],
-	128:   _Cat_name[45:51],
-	256:   _Cat_name[51:62],
-	512:   _Cat_name[62:73],
-	1024:  _Cat_name[73:79],
-	2048:  _Cat_name[79:85],
-	4096:  _Cat_name[85:96],
-	8192:  _Cat_name[96:107],
-	16384: _Cat_name[107:114],
-	32768: _Cat_name[114:119],
-	65536: _Cat_name[119:124],
+	0:      _Cat_name[0:7],
+	1:      _Cat_name[7:15],
+	2:      _Cat_name[15:20],
+	4:      _Cat_name[20:24],
+	8:      _Cat_name[24:28],
+	16:     _Cat_name[28:36],
+	32:     _Cat_name[36:40],
+	64:     _Cat_name[40:45],
+	128:    _Cat_name[45:51],
+	256:    _Cat_name[51:62],
+	512:    _Cat_name[62:73],
+	1024:   _Cat_name[73:79],
+	2048:   _Cat_name[79:87],
+	4096:   _Cat_name[87:98],
+	8192:   _Cat_name[98:104],
+	16384:  _Cat_name[104:109],
+	32768:  _Cat_name[109:114],
+	65536:  _Cat_name[114:119],
+	131072: _Cat_name[119:124],
 }
 
 func (i Cat) String() string {

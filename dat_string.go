@@ -15,30 +15,36 @@ func _() {
 	_ = x[Irrational-16]
 	_ = x[Imaginary-32]
 	_ = x[Binary-64]
-	_ = x[Double-128]
+	_ = x[TwoByte-128]
 	_ = x[Character-256]
 	_ = x[String-512]
-	_ = x[Native-1024]
-	_ = x[Literal-2048]
+	_ = x[Slice-1024]
+	_ = x[Struct-2048]
+	_ = x[KeyVal-4096]
+	_ = x[Native-8192]
+	_ = x[Literal-16384]
 	_ = x[None-0]
 }
 
-const _Dat_name = "NoneBooleanUnsignedIntegerRationalIrrationalImaginaryBinaryDoubleCharacterStringNativeLiteral"
+const _Dat_name = "NoneBooleanUnsignedIntegerRationalIrrationalImaginaryBinaryTwoByteCharacterStringSliceStructKeyValNativeLiteral"
 
 var _Dat_map = map[Dat]string{
-	0:    _Dat_name[0:4],
-	1:    _Dat_name[4:11],
-	2:    _Dat_name[11:19],
-	4:    _Dat_name[19:26],
-	8:    _Dat_name[26:34],
-	16:   _Dat_name[34:44],
-	32:   _Dat_name[44:53],
-	64:   _Dat_name[53:59],
-	128:  _Dat_name[59:65],
-	256:  _Dat_name[65:74],
-	512:  _Dat_name[74:80],
-	1024: _Dat_name[80:86],
-	2048: _Dat_name[86:93],
+	0:     _Dat_name[0:4],
+	1:     _Dat_name[4:11],
+	2:     _Dat_name[11:19],
+	4:     _Dat_name[19:26],
+	8:     _Dat_name[26:34],
+	16:    _Dat_name[34:44],
+	32:    _Dat_name[44:53],
+	64:    _Dat_name[53:59],
+	128:   _Dat_name[59:66],
+	256:   _Dat_name[66:75],
+	512:   _Dat_name[75:81],
+	1024:  _Dat_name[81:86],
+	2048:  _Dat_name[86:92],
+	4096:  _Dat_name[92:98],
+	8192:  _Dat_name[98:104],
+	16384: _Dat_name[104:111],
 }
 
 func (i Dat) String() string {

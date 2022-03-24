@@ -1,30 +1,29 @@
 package main
 
+// SEQUENCE OF ITEMS
+// TODO: implement slice tricks: https://ueokande.github.io/go-slice-tricks/
+type Seq []Item             // cons∷f(*…)→v|pure∷f(v)→*…|unit∷f(v *ₜ)→v
+func SequenceIdentity() Seq { return Seq{} }
+func EmptySequence() Seq    { return Seq{} }
+
 // SEQUENCE
-func (v Seq) Ident() Item { return v }
-func (s Seq) Null() Item  { return Seq{} }
-func (s Seq) Unit() Item  { return Seq{Seq{}} }
-func (s Seq) Couple() Lnk { return Couple(s.First(), s.Second()) }
-func (s Seq) Type() T     { return T{Sequence} }
+func (v Seq) Ident() Item    { return v }
+func (s Seq) Null() Item     { return Seq{} }
+func (s Seq) Unit() Item     { return Seq{Seq{}} }
+func (s Seq) Couple() Lnk    { return Link(s.First(), s.Second()) }
+func (s Seq) Type() Identity { return Sequence }
 func (s Seq) Signature() T {
 	if len(s) > 0 {
 		return T{s[0].Type()}
 	}
 	return T{}
 }
-func (s Seq) Cons(args ...Item) (i Item, c Continue) { // type & instance constructor
+func (s Seq) Cons(args ...Item) (i Item, c Cnt) { // type & instance constructor
 	return i, c
-}
-func (s Seq) Symbol() Str {
-	if len(s) > 0 {
-		return Str("[" + s.Signature()[0].Symbol() + "]")
-	}
-	return Str("[]")
 }
 
 func (s Seq) Append(args ...Item) Seq { return append(s, args...) }
 func (v Seq) Len() Int                { return Int(len(v)) }
-
 func (v Seq) Pick(i Int) Item {
 	if len(v) > int(i) {
 		return v[i]
@@ -43,7 +42,7 @@ func (v Seq) Take(n int) Item {
 	return v
 }
 
-func (v Seq) Range(s, e Int) Sequential {
+func (v Seq) Range(s, e Int) Seq {
 	if len(v) > int(e) {
 		return v[s:e]
 	}
@@ -88,18 +87,18 @@ func (v Seq) Flip() Seq {
 	}
 	return v
 }
-func (v Seq) List() Lst { return Stack(v...) }
+func (v Seq) List() Lst { return StackL(v...) }
 func (v Seq) Pair() Lnk {
 	if len(v) > 0 {
 		if len(v) > 1 {
-			return Couple(v[0], v[1:])
+			return Link(v[0], v[1:])
 		}
-		return Couple(v[0], nil)
+		return Link(v[0], nil)
 	}
-	return Couple(nil, nil)
+	return Link(nil, nil)
 }
-func Collect(args ...Item) Seq { return Seq(args) }
-func MapSequence(s Seq, f Fnc) Seq {
+func Serialize(args ...Item) Seq { return Seq(args) }
+func FMapS(s Seq, f Fnc) Seq {
 
 	var r = make(Seq, 0, len(s))
 
@@ -109,192 +108,28 @@ func MapSequence(s Seq, f Fnc) Seq {
 	return r
 }
 
-func ApplySequence(s Seq, f func(Seq, ...Item) (Item, Seq)) Continue {
+func ApplyS(s Seq, f func(Seq, ...Item) (Item, Seq)) Cnt {
 
-	return Continue(func(args ...Item) (Item, Continue) {
+	return Cnt(func(args ...Item) (Item, Cnt) {
 		if len(args) > 0 {
 			if len(args) > 1 {
 				o, m := f(s, args...)
-				return o, ApplySequence(m, f)
+				return o, ApplyS(m, f)
 			}
 			o, m := f(s, args[0])
-			return o, ApplySequence(m, f)
+			return o, ApplyS(m, f)
 		}
 		o, m := f(s)
-		return o, ApplySequence(m, f)
+		return o, ApplyS(m, f)
 	})
 }
 
-func PrependSeq(s Seq, args ...Item) Seq { return append(args, s...) }
-func AppendSeq(s Seq, args ...Item) Seq  { return append(s, args...) }
-func ConcatSeq(s Seq, sqs ...Seq) Seq {
+func (a Seq) Continue(args ...Item) (i Item, c Cnt) { return i, c }
+func PrependS(s Seq, args ...Item) Seq              { return append(args, s...) }
+func AppendS(s Seq, args ...Item) Seq               { return append(s, args...) }
+func ConcatS(s Seq, sqs ...Seq) Seq {
 	for _, seq := range sqs {
 		return append(s, seq...)
 	}
 	return s
-}
-
-// LINKED LIST
-func (Lst) Type() T { return T{List} }
-func (l Lst) Symbol() Str {
-	if l.First() != nil {
-		return Str("(") + l.First().Type().Symbol() + Str(")")
-	}
-	return Str("()")
-}
-func (l Lst) Signature() T {
-	if l.First() != nil {
-		return T{List, T{l.First().Type()}}
-	}
-	return T{List, T{EmptyList()}}
-}
-func (l Lst) Ident() Item                  { return l }
-func (l Lst) First() Item                  { h, _ := l(); return h }
-func (l Lst) Second() Item                 { _, t := l(); return t }
-func (l Lst) Empty() Bool                  { h, t := l(); return h == nil && t == nil }
-func (l Lst) Next() (Item, Iterator)       { return l() }
-func (l Lst) Extend(args ...Item) Iterator { return l.Prepend(args...) }
-func (l Lst) Concat(args ...Item) Iterator { return l.Extend(args...) }
-func (l Lst) Append(args ...Item) Iterator { return ConcatLists(l, ConsList(EmptyList(), args...)) }
-func (l Lst) Prepend(args ...Item) Lst {
-	if len(args) > 0 {
-		return ConsList(l, args...)
-	}
-	return l
-}
-func (l Lst) Cons(args ...Item) (i Item, c Iterator) {
-	if len(args) > 0 {
-		return ConsList(l, args...)()
-	}
-	return l()
-}
-func (l Lst) Couple() Lnk {
-	var h, t = l()
-	return Couple(h, t.Couple())
-}
-func Stack(args ...Item) Lst {
-	return Lst(func() (Item, Lst) {
-		if len(args) > 0 {
-			if len(args) > 1 {
-				return args[0], Stack(args[1:]...)
-			}
-			return args[0], nil
-		}
-		return nil, nil
-	})
-}
-
-func ConcatLists(left, right Lst) Lst {
-	if left == nil {
-		return right
-	}
-	return Lst(func() (o Item, c Lst) {
-		o, c = left()
-		return o, ConcatLists(c, right)
-	})
-}
-
-func ConsList(list Lst, args ...Item) Lst {
-	if len(args) > 0 {
-		if len(args) > 1 {
-			return Lst(func() (Item, Lst) {
-				return args[0], ConsList(list, args[1:]...)
-			})
-		}
-		return Lst(func() (Item, Lst) {
-			return args[0], list
-		})
-	}
-	return list
-}
-
-func FoldList(
-	list Lst,
-	accu Item,
-	fold func(
-		list Lst,
-		accu Item,
-	) (
-		result,
-		accumulated Item,
-		tail Lst,
-	),
-) Item {
-	var temp Item
-skip:
-	if list == nil {
-		return accu
-	}
-
-	temp, accu, list = fold(list, accu)
-
-	if temp == nil {
-		goto skip
-	}
-
-	return Stack(temp, FoldList(list, accu, fold))
-}
-
-func EmptyList() Lst {
-	return Lst(func() (Item, Lst) {
-		return nil, EmptyList()
-	})
-}
-
-func FMapList(
-	list Lst,
-	function Fnc,
-) Lst {
-	if list == nil {
-		return FMapList(EmptyList(), function)
-	}
-
-	var (
-		head Item
-		tail Lst
-	)
-
-	return Lst(func() (Item, Lst) {
-
-		head, tail = list()
-
-		if head == nil {
-			return nil, FMapList(tail, function)
-		}
-
-		return function(head), FMapList(tail, function)
-	})
-}
-
-func ApplyList(
-	list Lst,
-	apply func(
-		list Lst,
-		args ...Item) (
-		current Item, tail Lst,
-	)) Continue {
-
-	if list == nil {
-		return nil
-	}
-
-	return Continue(func(args ...Item) (current Item, tail Continue) {
-		if len(args) > 0 {
-
-			var head, list = apply(list, args...)
-
-			if head == nil {
-				return list, nil
-			}
-
-			return head, ApplyList(list, apply)
-		}
-
-		if current == nil {
-			return list, nil
-		}
-
-		current, list = apply(list)
-		return current, ApplyList(list, apply)
-	})
 }
