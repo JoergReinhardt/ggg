@@ -42,11 +42,11 @@ const (
 	Category = Function | Class | Data | List | Sequence | Pair | Tuple | Record |
 		Conditional | Comparative | Choice | Alternative | Monoid | Monad | Arrow | Optic | Error
 
-	Product = List | Sequence | Pair | Tuple | Record
+	ProductType = List | Sequence | Pair | Tuple | Record
 
-	Sum = Conditional | Comparative | Choice | Optional | Alternative
+	SumType = Conditional | Comparative | Choice | Optional | Alternative
 
-	Functor = Sum | Product
+	Functor = SumType | ProductType // data structure with default operation (mapF)
 
 	Applicative = Functor | Monoid
 
@@ -57,13 +57,11 @@ const (
 )
 
 // IDENTITY
-
-// Das Set aller Kategorien ist ein Teil vom Teil der anfangs alles war, ein
-// Teil der Finsternis die sich das Licht gebar.
 //
-// returns category identity (all Flag Constants of type Cat '|' concatinated)
-// unless the instance is Category identity, in which case nil is retuned, to
-// indicate the root of the hierachical system of categories.
+// type of categories, or sets there of is 'Category', which is the OR
+// concatenated identity of the set of constants of type 'Cat'.  'Category' is
+// no member of that set, hence has no type and returns 'nil' to indicate root
+// of the type system instead.
 func (k Cat) Type() Identity {
 	if k == Category {
 		return nil
@@ -71,12 +69,15 @@ func (k Cat) Type() Identity {
 	return Category
 }
 
-func (k Cat) Ident() Item {
-	return k
-}
+// a categoriy flags identify as tehemselves
+func (k Cat) Ident() Item { return k }
+
+// signature is the split set of OR concatenated set members for composed
+// types, or single element slice containing the atomic category dentoed by
+// flag.
 func (k Cat) Signature() (t T) {
 	if k.Composed() {
-		return T{k, k.Split()}
+		return k.Split()
 	}
 	return T{k}
 }
@@ -90,32 +91,29 @@ func (k Cat) Signature() (t T) {
 //        _ = Category, Continue
 func (k Cat) Continue(args ...Item) (i Item, c Cnt) {
 	if len(args) > 0 {
-		var (
-			t   Identity
-			arg = args[0]
-		)
-		if arg.Type() == nil {
-			if k.Contains(t.(Cat)) {
-				i = T{arg.Type(), arg.Type().Signature()}
+		var a Cat //‥set 't' to either
+		if args[0].Type().Type() != nil {
+			if args[0].Type().Type().Type() == nil {
+				a = args[0].Type().(Cat)
 			}
+		} else {
+			a = args[0].(Cat)
 		}
-		if t = arg.Type(); t != nil {
-			if t = t.Type(); t == nil {
-				if k.Contains(t.(Cat)) {
-					i = T{arg.Type(), arg.Type().Signature()}
-				}
-			}
-		}
-		if len(args) > 1 {
-			args = args[1:]
-			return i, Condense(k.Continue(args...))
-		}
-		return i, nil
-	}
-	if k == Category {
-		return k, Cat(1).Continue
-	}
-	return k, Cat(k + 1<<1).Continue
+		if k.Contains(a) { //‥return verified first argument & continue
+			if len(args) > 1 { //‥on argument remainder…
+				return args[0], Seq(args[1:]).Continue
+			} //‥or just yield argument and don't continue…
+			return args[0], nil
+		} //‥argument didn't match, return all args…
+		return nil, Seq(args).Continue
+	} //‥no arguments passed…
+	if k == Category { //‥categories iedentity & continue on 'Nothing'
+		return k, Cat(0).Continue
+	} //‥instance and continue on next…
+	if cardinality(Flag(k)) < cardinality(Flag(Category)) {
+		return k, Cat(k + 1<<1).Continue
+	} //‥Nothing & continue on first category…
+	return Cat(0), Cat(1 << 1).Continue
 }
 
 // EQUALITY
@@ -142,6 +140,7 @@ func (k Cat) Contains(a Cat) Bool  { return contains(Flag(k), Flag(a)) }
 func (k Cat) Contained(a Cat) Bool { return contains(Flag(a), Flag(k)) }
 
 // ITERATION
+func (k Cat) Flag() Flag { return Flag(k) }
 func (k Cat) Next() Cat {
 	if k.Num() < k.Max() {
 		return Cat(1<<int(k.Num()) + 1)
@@ -179,14 +178,38 @@ func (c Cat) Symbol() (s Str) {
 	if c == Nothing {
 		return Str("⊥")
 	}
-	return Str(c.String())
+	return Str(c.Symbol())
 }
-
-func (k Cat) Flag() Flag { return Flag(k) }
 func (k Cat) Sequence() Seq {
 	t := make(Seq, 0, magnitude(Flag(k)))
 	for _, f := range k.Split() {
 		t = append(t, f.(Cat))
 	}
 	return t
+}
+
+// matchCategory tests, if second argument either is a flag of type 'Cat', or
+// has a type, which is a flag of type 'Cat'.  if one of those conditions is
+// met, the flag is then tested to either be contained, or not in first
+// argument, when interptretet as set, possibly of magnitude one.  if thats the
+// case, the argument is been returned, in case argument itself was the flag,
+// it will be split to return an item of type 'T'.
+func matchCategory(c Cat, arg Item) (i Item) {
+	// CATEGORY FLAG
+	if arg.Type() == nil { // argument type is category identity
+		if c == Category { // category identity is to be matched
+			if cat, ok := arg.(Cat); ok {
+				return cat.Split()
+			}
+		}
+	}
+	// ARGUMENT OF TYPE CATEGORY
+	if arg.Type().Type() == nil { // argument type is category, or set there of
+		if cat, ok := arg.Type().(Cat); ok { // type is indeed a category
+			if c.Contains(cat) { // type is contained in category to be matched
+				return arg
+			}
+		}
+	}
+	return nil
 }

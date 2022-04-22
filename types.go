@@ -10,43 +10,59 @@ import (
 
 // TYPE CLASSES
 //  lets keep things as simple as possible:
-type ()
-
-type ()
-
 type (
-	// IDENTITY
-	Identity interface {
-		Item
-		Type() Identity // return parent type
-		Symbol() Str    // subtypes of this type
-		Signature() T   // subtypes of this type
-		Continue(...Item) (Item, Cnt)
-	}
-	// SIGNATURE
-	T []Identity
 	// ITEM
 	Item interface {
 		Ident() Item
 		Type() Identity
 	}
-	Lifted interface {
-		Map(Fnc) Lifted
+	// IDENTITY
+	Symbolic interface {
+		Symbol() Str // subtypes of this type
 	}
-	Sequential interface {
-		Len() Int
-		Pick(Int) Item
-		Range(s, e Int) Seq
+	Identity interface {
+		Item
+		Symbolic
+		Type() Identity // return parent type
+		Signature() T   // subtypes of this type
+		Continue(...Item) (Item, Cnt)
+	}
+	// FUNCTOR (Applicable|Function|Monoid|Monad|…)
+	Applicable interface {
+		Apply(...Item) (Item, Cnt)
+	}
+	// COLLECTIONS
+	Enumeratet interface { // List Next() (Item, Lst)
+		Next() (Item, Lst)
 	}
 	Linked interface {
 		Left() Item
 		Right() Item
 		Swap() Lnk
 	}
-	Listed interface {
-		Next() (Item, Lst)
-		Head() Item
-		Tail() Lst
+	Sequential interface {
+		Len() Int
+		Pick(Int) Item
+		Range(s, e Int) Seq
+	}
+	// COMPOSALS
+	Tupled interface {
+		Take(...Item) Tupled
+		Return(...Item) (Item, Tupled)
+	}
+	Recorded interface {
+		Lookup(Name) Item
+		Put(Name, Item) Recorded
+	}
+	// ARBITRARY TYPE|DATA CONSTRUCTOR
+	Constructor interface {
+		Item
+		Continue(...Item) (Item, Cnt)
+	}
+
+	// TYPE CLASSES
+	Nullable interface {
+		Zero() Item
 	}
 	Printable interface {
 		Print() Str
@@ -64,17 +80,16 @@ type (
 		Lesser(Item) Bool
 		Greater(Item) Bool
 	}
+	Numeric interface {
+		Number() Numeric
+	}
 	Appendable interface {
 		Append(Item) Appendable
 	}
 	Composed interface {
-		Compose(Item) Cnt
+		Compose(Item) (Item, Composed)
 		First() Item
 		Second() Item
-	}
-	Applicable interface {
-		FMap(Fnc) App
-		Apply(...Item) (Item, App)
 	}
 	LeftBinding interface {
 		Head() Item
@@ -90,10 +105,6 @@ type (
 		Progress() Cnt
 		Regress() Cnt
 	}
-	Constructor interface {
-		Item
-		Continue(...Item) (Item, Cnt)
-	}
 	UpperBound interface {
 		Max() Int
 	}
@@ -103,9 +114,6 @@ type (
 	Limitet interface {
 		UpperBound
 		LowerBound
-	}
-	Nullable interface {
-		Zero() Item
 	}
 	Modal interface { // Category∷Monoid
 		Concat(Item) Item // [a] ↔ a
@@ -125,13 +133,33 @@ type (
 	}
 
 	// IDENTITY LABLE TYPES
+	//  label types scrutinize arguments to either be labels as well, in
+	//  which case they are either retuned, when equal to, or contained in
+	//  argument(s), or instances of a type representet by the same kind of
+	//  type label and if it is equal, or contained.  if argument or lable
+	//  coul be validated, it is returned without continuation. if its not
+	//  matched, no result is generated, aand sequence of arguments is
+	//  returned as continuation.  if result and continuation are returned,
+	//  result is conscidered partial and computation needs additional
+	//  arguments, or empty applications in order to complete it.
 	Index Int
 	Flag  Unt
 	Name  Str
+
+	// SIGNATURE TYPE
+	//  generic type expression
+	T []Identity
 )
 
-//////////////////////////////////////////////////////
-//// SIGNATURE
+func normnalize(i Identity) (t T) {
+	if c := matchCategory(Category, i); c == nil { // passed identity is not fully normalized yet…
+		//‥normalize recursively
+		t = normnalize(T{i.Type(), i.Signature()})
+	} // i is of type 'Cat' ⇔ return normalized type
+	return T{i, i.Signature()}
+}
+
+//// SIGNATURE //////////////////////////////////////
 ///
 //    signature type is a sequence of type instances, possibly recursive to
 //    encode the types data structure.
@@ -145,43 +173,20 @@ func (s T) Type() Identity {
 	if len(s) > 0 { // T[a,…] ⇔ T a
 		return s[0]
 	} // T[ ] ⇔ nil a
-	return nil
+	return Nothing
 }
-func (s T) Len() Int { return Int(len(s)) }
 
 // Signature·Signature → Type
 func (s T) Signature() T {
 	if len(s) > 1 {
 		if len(s) > 2 {
-			return T(s[1:])
+			return s
 		}
-		return T{s[1]}
+		return s[1:]
 	}
 	return T{}
 }
-
-// fold	    ∷ a → b → b
-// f a b    = b
-// f a _    = b
-// f _ b|_  = _
-
-// concat   ∷ a → a → a
-// c (a:as) = a
-// c a a    = a
-// c _ as   = a
-// c a _    = (a → a)
-// c _ a    = (a → a)
-
-// FoldMap  ∷ b & fold $ concat $ a * a|(a:as)
-func (s T) Continue(args ...Item) (i Item, c Cnt) {
-	if len(args) > 0 {
-		a := args[0]
-		if len(s) > 0 {
-			b := s[0]
-		}
-	}
-	return i, c
-}
+func (s T) Len() Int { return Int(len(s)) }
 
 // Signature·Sequence → Sequence
 //
@@ -324,8 +329,52 @@ func (s T) Symbol() Str {
 	return s.Type().Symbol()
 }
 
-////////////////////////////////////////////////////////////////////////////////
-/// INDEX
+// fold	    ∷ a → b → b
+// f a b    = b
+// f a _    = b
+// f _ b|_  = _
+
+// concat   ∷ a → a → a
+// c (a:as) = a
+// c a a    = a
+// c _ as   = a
+// c a _    = (a → a)
+// c _ a    = (a → a)
+
+// FoldMap  ∷ b & fold $ concat $ a * a|(a:as)
+
+//  continuation of a pattern presents its arguments to the constructors of
+//  it's set of parameters and returns all results produced, eventually
+//  replacing parameters in pattern with composals resulting from argument
+//  application
+func (t T) Continue(args ...Item) (i Item, c Cnt) {
+	if len(args) > 0 {
+		if len(t) > 0 { //‥pattern not yet depletet…
+			if i, c = t[0].Continue(args[0]); i != nil {
+				if len(args) > 1 { //‥more arguments to process…
+					if c != nil {
+						c = Condense(c(args[1:]...))
+						if len(t) > 1 { //‥more constructors to test…
+							c = Concat(c, t[1:])
+						}
+					}
+				}
+			}
+			return i, c // one of which, or both mybe nil
+		} //‥arguments didn't match, or pattern depletet → (nil args…)
+		return nil, Seq(args).Continue
+	}
+	//‥when called without arguments, iterate over parameter
+	if len(t) > 0 {
+		if len(t) > 1 {
+			return t[0], t[1:].Continue
+		}
+		return t[0], T{}.Continue
+	}
+	return T{}, T{}.Continue
+}
+
+/// INDEX //////////////////////////////////////////////////////////////////////
 func IndexFromFlag(f Flag) Index                      { return Index(f.Len()) }
 func (i Index) Ident() Item                           { return i }
 func (i Index) Type() Identity                        { return nil }
@@ -335,8 +384,7 @@ func (i Index) FtoI(f Flag) Index                     { return Index(f.Len()) }
 func (i Index) Flag() Flag                            { return Flag(1 << i) }
 func (a Index) Continue(args ...Item) (i Item, c Cnt) { return i, c }
 
-////////////////////////////////////////////////////////////////////////////////
-// NAME
+// NAME ///////////////////////////////////////////////////////////////////////
 func splitName(name Name) (names []string) {
 	var s = string(name)
 	switch {
@@ -458,7 +506,7 @@ func (n Name) Continue(args ...Item) (Item, Cnt) {
 		// validate first argument to be either category, or class
 		// is not contained in n, or no label at all → return nil and
 		// all arguments.
-		return nil, Seq(args).Cons
+		return nil, Seq(args).Continue
 	}
 	// empty call → name & continuation
 	return n, n.Continue

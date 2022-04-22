@@ -34,8 +34,8 @@ const (
 
 	Bitwise = Boolean | Binary | TwoByte | Character | Unsigned
 
-	Numeric = Boolean | Unsigned | Integer | Rational |
-		Irrational | Imaginary | Binary | TwoByte
+	Number = Unsigned | Integer | Rational |
+		Irrational | Imaginary
 
 	Text = Character | String | Literal
 
@@ -45,7 +45,7 @@ const (
 
 	Value = Structure | Transform
 
-	DataIdentity = Bitwise | Numeric | Text | Structure | Transform
+	DataIdentity = Bitwise | Number | Text | Structure | Transform
 
 	None Dat = 0
 )
@@ -54,8 +54,8 @@ const (
 func (d Dat) Ident() Item    { return d }
 func (d Dat) Type() Identity { return Data }
 func (d Dat) Signature() T {
-	if d == None {
-		return T{Data}
+	if d.Composed() {
+		return d.Split()
 	}
 	return T{d}
 }
@@ -72,7 +72,7 @@ func (c Dat) Symbol() Str {
 	if c == None {
 		return Str("⊥")
 	}
-	return Str(c.String())
+	return Str(c.Symbol())
 }
 
 func (Dat) Null() Item { return Class }
@@ -84,9 +84,10 @@ func (Dat) Unit(args ...Item) Identity {
 	}
 	return nil
 }
-func (d Dat) Flag() Flag     { return Flag(d) }
-func (c Dat) Flags() []Flag  { return split(Flag(c)) }
-func (d Dat) Composed() Bool { return composed(Flag(d)) }
+func (d Dat) Flag() Flag            { return Flag(d) }
+func (c Dat) Flags() []Flag         { return split(Flag(c)) }
+func (d Dat) Composed() Bool        { return composed(Flag(d)) }
+func (d Dat) Contains(arg Dat) Bool { return contains(Flag(d), Flag(arg)) }
 
 func (d Dat) Split() T {
 	sig := make([]Identity, 0, cardinality(Flag(d)))
@@ -96,22 +97,61 @@ func (d Dat) Split() T {
 	return sig
 }
 
+// 'Dat' is a category type declaring alias types of atomic go types and slices
+// there of, as well as a generic declaration of structs and maps with default
+// implementations based on the golang types of those names and/or golang
+// arrays of library types.
+//
+// 'Dat.Continue' tests arguments to Either be
+//    * an instance of one of the data types, i.e. a member of 'Data' with
+//	identity from the set of data types and a data constructor, constructing
+//	instances of that type (type check).
+//    * an instance of the identity of the data type (set of all declared types
+//	of kind data), without any reference to constructor, or itema (type
+//	equality)
 func (d Dat) Continue(args ...Item) (i Item, c Cnt) {
 	if len(args) > 0 {
 		arg := args[0]
 		if len(args) > 1 {
 			args = args[1:]
-			return arg, Condense(d.Continue(args...))
-		}
+			// try validate first argument (see below if)…
+			if arg, _ := d.Continue(arg); arg != nil {
+				// ‥succeed, if first argument validated
+				return arg, Condense(d.Continue(args...))
+			}
+		} // test if arguments parent type equals 'Data' type of 'Dat'
 		if t, _ := Data.Continue(arg.Type().Type()); t != nil {
+			// return argument, when validated to be an instance of
+			// type data
 			return arg, nil
-		}
+		} // nothing got constructed, no arguments consumed →  return
+		// no result & all arguments to continue on.
 		return nil, Seq(args).Continue
+	} // no arguments passed → empty call checks bounds and returns identity
+	// and continuation to continue on next element …
+	if cardinality(Flag(d)) < cardinality(Flag(DataIdentity)) {
+		return d, (d + 1<<1).Continue
+	} // ‥or wraps around to zero element of monoidal ring
+	return Dat(0), Dat(1).Continue
+}
+func matchData(d Dat, arg Item) (i Item) {
+	// DATA FLAG
+	if t := matchCategory(Data, arg.Type()); t != nil {
+		if dat, ok := t.(Dat); ok {
+			if d.Contains(dat) {
+				return dat.Split()
+			}
+		}
 	}
-	if d == DataIdentity {
-		return d, Dat(1).Continue
+	// ARGUMENT OF TYPE DATA
+	if t := matchCategory(Data, arg.Type().Type()); t != nil {
+		if dat, ok := t.(Dat); ok {
+			if d.Contains(dat) {
+				return arg
+			}
+		}
 	}
-	return d, (d + 1<<1).Continue
+	return nil
 }
 
 func (d Dat) G(g GoV) Item {
@@ -385,17 +425,20 @@ func (e DByte) Signature() T { return T{} }
 func (e Rune) Signature() T  { return T{} }
 func (e Str) Signature() T   { return T{} }
 
-func (e Bool) Symbol() Str  { return Str(Boolean.String()) }
-func (e Unt) Symbol() Str   { return Str(Unsigned.String()) }
-func (e Int) Symbol() Str   { return Str(Integer.String()) }
-func (e Rat) Symbol() Str   { return Str(Rational.String()) }
-func (e Flt) Symbol() Str   { return Str(Irrational.String()) }
-func (e Img) Symbol() Str   { return Str(Imaginary.String()) }
-func (e Byte) Symbol() Str  { return Str(Binary.String()) }
-func (e DByte) Symbol() Str { return Str(Binary.String()) }
-func (e Rune) Symbol() Str  { return Str(Character.String()) }
-func (e Str) Symbol() Str   { return Str(String.String()) }
+func (e Bool) Symbol() Str  { return Str(Boolean.Symbol()) }
+func (e Unt) Symbol() Str   { return Str(Unsigned.Symbol()) }
+func (e Int) Symbol() Str   { return Str(Integer.Symbol()) }
+func (e Rat) Symbol() Str   { return Str(Rational.Symbol()) }
+func (e Flt) Symbol() Str   { return Str(Irrational.Symbol()) }
+func (e Img) Symbol() Str   { return Str(Imaginary.Symbol()) }
+func (e Byte) Symbol() Str  { return Str(Binary.Symbol()) }
+func (e DByte) Symbol() Str { return Str(Binary.Symbol()) }
+func (e Rune) Symbol() Str  { return Str(Character.Symbol()) }
+func (e Str) Symbol() Str   { return Str(String.Symbol()) }
 
+// continuation of atomic type returns its instance and type continuation, when
+// called empty and tries to construct instances of its type from arguments, in
+// order to concatenate those to a sequence of its type.
 func (e Bool) Continue(es ...Item) (Item, Cnt) {
 	return Cnt(func(bs ...Item) (i Item, c Cnt) {
 		if len(bs) > 0 { // CONCATENATE|APPLY
@@ -408,6 +451,8 @@ func (e Bool) Continue(es ...Item) (Item, Cnt) {
 		return e, nil
 	})(es...)
 }
+
+// continuation of sequences of atomic types try to append any arguments and return the head element continued by remaining elements in order to implement Enumeratet
 func (e BoolSeq) Continue(es ...Item) (Item, Cnt) {
 	return Cnt(func(bs ...Item) (i Item, c Cnt) {
 		if len(es) > 0 { // concatenate constructors arguments, if any
@@ -421,7 +466,10 @@ func (e BoolSeq) Continue(es ...Item) (Item, Cnt) {
 			}
 			return nil, Seq(es).Continue
 		}
-		return e, nil
+		if len(e) > 0 {
+			return e[0], e[1:].Continue
+		}
+		return e, BoolSeq{}.Continue
 	})(es...)
 }
 
@@ -450,7 +498,10 @@ func (e UntSeq) Continue(es ...Item) (Item, Cnt) {
 			}
 			return nil, Seq(es).Continue
 		}
-		return e, nil
+		if len(e) > 0 {
+			return e[0], e[1:].Continue
+		}
+		return e, UntSeq{}.Continue
 	})(es...)
 }
 
@@ -479,7 +530,10 @@ func (e IntSeq) Continue(es ...Item) (Item, Cnt) {
 			}
 			return nil, Seq(es).Continue
 		}
-		return e, nil
+		if len(e) > 0 {
+			return e[0], e[1:].Continue
+		}
+		return e, IntSeq{}.Continue
 	})(es...)
 }
 
@@ -508,7 +562,10 @@ func (e RatSeq) Continue(es ...Item) (Item, Cnt) {
 			}
 			return nil, Seq(es).Continue
 		}
-		return e, nil
+		if len(e) > 0 {
+			return e[0], e[1:].Continue
+		}
+		return e, RatSeq{}.Continue
 	})(es...)
 }
 func (e Flt) Continue(as ...Item) (Item, Cnt) {
@@ -536,7 +593,10 @@ func (e FltSeq) Continue(es ...Item) (Item, Cnt) {
 			}
 			return nil, Seq(es).Continue
 		}
-		return e, nil
+		if len(e) > 0 {
+			return e[0], e[1:].Continue
+		}
+		return e, FltSeq{}.Continue
 	})(es...)
 }
 
@@ -565,7 +625,10 @@ func (e ImgSeq) Continue(es ...Item) (Item, Cnt) {
 			}
 			return nil, Seq(es).Continue
 		}
-		return e, nil
+		if len(e) > 0 {
+			return e[0], e[1:].Continue
+		}
+		return e, ImgSeq{}.Continue
 	})(es...)
 }
 
@@ -594,7 +657,10 @@ func (e ByteSeq) Continue(es ...Item) (Item, Cnt) {
 			}
 			return nil, Seq(es).Continue
 		}
-		return e, nil
+		if len(e) > 0 {
+			return e[0], e[1:].Continue
+		}
+		return e, ByteSeq{}.Continue
 	})(es...)
 }
 func (e DByte) Continue(as ...Item) (Item, Cnt) {
@@ -622,7 +688,10 @@ func (e DyteSeq) Continue(es ...Item) (Item, Cnt) {
 			}
 			return nil, Seq(es).Continue
 		}
-		return e, nil
+		if len(e) > 0 {
+			return e[0], e[1:].Continue
+		}
+		return e, DyteSeq{}.Continue
 	})(es...)
 }
 func (e Rune) Continue(as ...Item) (Item, Cnt) {
@@ -650,7 +719,10 @@ func (e RuneSeq) Continue(es ...Item) (Item, Cnt) {
 			}
 			return nil, Seq(es).Continue
 		}
-		return e, nil
+		if len(e) > 0 {
+			return e[0], e[1:].Continue
+		}
+		return e, RuneSeq{}.Continue
 	})(es...)
 }
 func (e Str) Continue(as ...Item) (Item, Cnt) {
@@ -678,7 +750,10 @@ func (e StrSeq) Continue(es ...Item) (Item, Cnt) {
 			}
 			return nil, Seq(es).Continue
 		}
-		return e, nil
+		if len(e) > 0 {
+			return e[0], e[1:].Continue
+		}
+		return e, StrSeq{}.Continue
 	})(es...)
 }
 
@@ -714,16 +789,27 @@ func (e DyteSeq) Ident() Item { return e }
 func (e RuneSeq) Ident() Item { return e }
 func (e StrSeq) Ident() Item  { return e }
 
-func (e BoolSeq) Type() Identity { return T{Boolean} }
-func (e UntSeq) Type() Identity  { return T{Unsigned} }
-func (e IntSeq) Type() Identity  { return T{Integer} }
-func (e RatSeq) Type() Identity  { return T{Rational} }
-func (e FltSeq) Type() Identity  { return T{Irrational} }
-func (e ImgSeq) Type() Identity  { return T{Imaginary} }
-func (e ByteSeq) Type() Identity { return T{Binary} }
-func (e DyteSeq) Type() Identity { return T{Binary} }
-func (e RuneSeq) Type() Identity { return T{Character} }
-func (e StrSeq) Type() Identity  { return T{String} }
+func (e BoolSeq) Type() Identity { return Data | Sequence }
+func (e UntSeq) Type() Identity  { return Data | Sequence }
+func (e IntSeq) Type() Identity  { return Data | Sequence }
+func (e RatSeq) Type() Identity  { return Data | Sequence }
+func (e FltSeq) Type() Identity  { return Data | Sequence }
+func (e ImgSeq) Type() Identity  { return Data | Sequence }
+func (e ByteSeq) Type() Identity { return Data | Sequence }
+func (e DyteSeq) Type() Identity { return Data | Sequence }
+func (e RuneSeq) Type() Identity { return Data | Sequence }
+func (e StrSeq) Type() Identity  { return Data | Sequence }
+
+func (e BoolSeq) Signature() T { return T{Boolean} }
+func (e UntSeq) Signature() T  { return T{Unsigned} }
+func (e IntSeq) Signature() T  { return T{Integer} }
+func (e RatSeq) Signature() T  { return T{Rational} }
+func (e FltSeq) Signature() T  { return T{Irrational} }
+func (e ImgSeq) Signature() T  { return T{Imaginary} }
+func (e ByteSeq) Signature() T { return T{Binary} }
+func (e DyteSeq) Signature() T { return T{Binary} }
+func (e RuneSeq) Signature() T { return T{Character} }
+func (e StrSeq) Signature() T  { return T{String} }
 
 func (e BoolSeq) Null() Item { return BoolSeq{} }
 func (e UntSeq) Null() Item  { return UntSeq{} }
@@ -735,17 +821,6 @@ func (e ByteSeq) Null() Item { return ByteSeq{} }
 func (e DyteSeq) Null() Item { return DyteSeq{} }
 func (e RuneSeq) Null() Item { return RuneSeq{} }
 func (e StrSeq) Null() Item  { return StrSeq{} }
-
-func (e BoolSeq) Signature() T { return T{Sequence, T{Data, T{Boolean}}} }
-func (e UntSeq) Signature() T  { return T{Sequence, T{Data, T{Unsigned}}} }
-func (e IntSeq) Signature() T  { return T{Sequence, T{Data, T{Integer}}} }
-func (e RatSeq) Signature() T  { return T{Sequence, T{Data, T{Rational}}} }
-func (e FltSeq) Signature() T  { return T{Sequence, T{Data, T{Irrational}}} }
-func (e ImgSeq) Signature() T  { return T{Sequence, T{Data, T{Imaginary}}} }
-func (e ByteSeq) Signature() T { return T{Sequence, T{Data, T{Binary}}} }
-func (e DyteSeq) Signature() T { return T{Sequence, T{Data, T{Binary}}} }
-func (e RuneSeq) Signature() T { return T{Sequence, T{Data, T{Character}}} }
-func (e StrSeq) Signature() T  { return T{Sequence, T{Data, T{String}}} }
 
 func ReturnBoolSeq(args ...Bool) BoolSeq  { return BoolSeq(args) }
 func ReturnUntSeq(args ...Unt) UntSeq     { return UntSeq(args) }

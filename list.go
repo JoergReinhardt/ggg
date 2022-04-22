@@ -5,17 +5,22 @@ package main
 type Lst func() (Item, Lst) // (x,xs)
 
 // LINKED LIST
-func (Lst) Type() Identity { return T{List} }
-func (l Lst) Symbol() Str  { return Str("()") }
+func (l Lst) Type() Identity { return List }
 func (l Lst) Signature() T {
 	if l.First() != nil {
-		return T{List, T{l.First().Type()}}
+		return T{l.First().Type()}
 	}
-	return T{List, T{}}
+	return T{}
+}
+func (l Lst) Symbol() Str {
+	if l.Empty() {
+		return Str("[]")
+	}
+	return Str("[") + l.First().Type().Symbol() + Str("]")
 }
 func (l Lst) Ident() Item             { return l }
 func (l Lst) First() Item             { h, _ := l(); return h }
-func (l Lst) Head() Item              { return l.First() }
+func (l Lst) Head() Item              { h, _ := l(); return h }
 func (l Lst) Tail() Lst               { _, t := l(); return t }
 func (l Lst) Second() Item            { _, t := l(); return t }
 func (l Lst) Empty() Bool             { h, t := l(); return h == nil && t == nil }
@@ -28,7 +33,7 @@ func (l Lst) Sequence() (s Seq) {
 		r, t = l()
 		return nil, append(accu.(Seq), r), t
 	}
-	return FoldList(l, Seq{}, f).(Seq)
+	return FoldL(l, Seq{}, f).(Seq)
 }
 func (l Lst) Prepend(args ...Item) Lst {
 	if len(args) > 0 {
@@ -46,11 +51,44 @@ func (l Lst) Couple() Lnk {
 	var h, t = l()
 	return Link(h, t.Couple())
 }
-func StackL(args ...Item) Lst {
+func (l Lst) Continue(args ...Item) (i Item, c Cnt) {
+	if len(args) > 0 {
+		if len(l.Signature()) > 0 {
+			if len(args) > 1 {
+				if i, c = l.Continue(args[0]); i != nil {
+					if c != nil { //‥prepend arg set remainder to tail yielded.
+						return i, Condense(c(args[1:]...))
+					} //‥prepend
+					return i, Cons(EmptyList(), args[1:]...).Continue
+				}
+				return nil, Seq(args).Continue
+			}
+			if a, _ := l.Signature()[0].Continue(args[0]); a != nil {
+				return a, l.Continue
+			} //‥fail to prepend arguments of inappropriate type
+			return nil, Seq(args).Continue
+		} //‥first element, no type defined yet…
+		return args[0], l.Continue
+	} //‥just return the list…
+	i, l = l()
+	return i, l.Continue
+}
+func (l Lst) FMap(f Fnc) Ident {
+	return Lst(func() (i Item, m Lst) {
+		if i, l = l(); i != nil {
+			if l != nil {
+				return Ident(i.Ident).FMap(f), l.FMap(f)().(Lst)
+			}
+			return Ident(i.Ident).FMap(f), nil
+		}
+		return nil, EmptyList().FMap(f)().(Lst)
+	}).Ident
+}
+func ComposeL(args ...Item) Lst {
 	return Lst(func() (Item, Lst) {
 		if len(args) > 0 {
 			if len(args) > 1 {
-				return args[0], StackL(args[1:]...)
+				return args[0], ComposeL(args[1:]...)
 			}
 			return args[0], nil
 		}
@@ -71,18 +109,14 @@ func ConcatL(left, right Lst) Lst {
 func Cons(list Lst, args ...Item) Lst {
 	if len(args) > 0 {
 		if len(args) > 1 {
-			return Lst(func() (Item, Lst) {
-				return args[0], Cons(list, args[1:]...)
-			})
+			return Lst(func() (Item, Lst) { return args[0], Cons(list, args[1:]...) })
 		}
-		return Lst(func() (Item, Lst) {
-			return args[0], list
-		})
-	}
+		return Lst(func() (Item, Lst) { return args[0], list })
+	} //‥just return the list…
 	return list
 }
 
-func FoldList(
+func FoldL(
 	list Lst,
 	accu Item,
 	fold func(
@@ -106,7 +140,7 @@ skip:
 		goto skip
 	}
 
-	return StackL(temp, FoldList(list, accu, fold))
+	return ComposeL(temp, FoldL(list, accu, fold))
 }
 
 func EmptyList() Lst { return ListIdentity() }
