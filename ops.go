@@ -1,13 +1,11 @@
 package main
 
-import "strings"
-
 type (
 	// indexed sets
 	Trp int8
 	Ord int8
 	Lgc int8
-	Rln int8
+	Rln int16
 	Arm int8
 )
 
@@ -17,22 +15,36 @@ const (
 	Undefined Trp = 0
 	True      Trp = 1
 
-	ttrue     = '⊤'
-	undefined = '¬'
-	tfalse    = '⊥'
+	truthTrue  = '⊤'
+	undefined  = '¬'
+	truthFalse = '⊥'
+)
+
+var (
+	truthNames = map[Trp]Rune{
+		True:      '⊤',
+		Undefined: '¬',
+		False:     '⊥',
+	}
+	truthByName = map[Rune]Trp{
+		'⊤': False,
+		'¬': Undefined,
+		'⊥': True,
+	}
 )
 
 func (a Trp) Ident() (i Item) { return a }
-func (a Trp) Type() Identity  { return T{Boolean} }
+func (a Trp) Type() Identity  { return Function }
 func (a Trp) Symbol() (s Str) {
 	switch a {
 	case False:
-		return Str(tfalse)
+		return Str(truthFalse)
 	case True:
-		return Str(ttrue)
+		return Str(truthTrue)
 	}
 	return Str(undefined)
 }
+func (a Trp) Signature() (t T) { return T{a} }
 func (f Trp) Continue(as ...Item) (a Item, c Cnt) {
 	if len(as) > 0 {
 		if len(as) > 1 {
@@ -42,7 +54,6 @@ func (f Trp) Continue(as ...Item) (a Item, c Cnt) {
 	}
 	return f, T{False, Undefined, True}.Continue
 }
-func (a Trp) Signature() (t T) { return T{a} }
 func (a Trp) Bool() Bool {
 	if a == True {
 		return true
@@ -110,42 +121,54 @@ func (a Lgc) Continue(ts ...Item) (i Item, c Cnt) { // args have to be Identity
 
 //go:generate stringer -type Ord
 const (
-	MLesser Ord = -2 + iota
+	MuchLesser Ord = -2 + iota
 	Lesser
 	Equal
 	Greater
-	MGreater
+	MuchGreater
 
-	OrderOps = MLesser | Lesser | Equal | Greater | MGreater
+	OrderOps = MuchLesser | Lesser | Equal | Greater | MuchGreater
 
-	mlesser  = '≪'
-	lesser   = '<'
-	equal    = '='
-	greater  = '>'
-	mgreater = '≫'
+	muchLesser  = '≪'
+	lesser      = '<'
+	equal       = '='
+	greater     = '>'
+	muchGreater = '≫'
 )
 
+var orderNames = map[Ord]Rune{
+	MuchLesser:  '≪',
+	Lesser:      '<',
+	Equal:       '=',
+	Greater:     '>',
+	MuchGreater: '≫',
+}
+
 func (o Ord) Ident() Item                         { return o }
-func (o Ord) Type() Identity                      { return Operator }
-func (o Ord) Signature() T                        { return T{Lesser, Equal, Greater} }
+func (o Ord) Type() Identity                      { return Function }
+func (o Ord) Signature() T                        { return T{Operator} }
 func (o Ord) Continue(xs ...Item) (i Item, c Cnt) { return i, c }
 func (o Ord) Symbol() Str {
+	var r Rune
 	switch o {
+	case MuchLesser:
+		r = muchLesser
 	case Lesser:
-		return Str(lesser)
+		r = lesser
 	case Equal:
-		return Str(equal)
+		r = equal
 	case Greater:
-		return Str(greater)
+		r = greater
+	case MuchGreater:
+		r = muchGreater
 	}
-	return Str(lesser + nor + greater + nor + greater)
+	return Str(r)
 }
 
 //go:generate stringer -type Rln
 const (
-	Only Rln = 1 + iota
+	All Rln = 1 + iota
 	Any
-	All
 	Once
 	Exists
 	ExistsNot
@@ -160,32 +183,77 @@ const (
 
 	Unrelated Rln = 0
 
-	all           = 'A'
-	ani           = '∀'
-	once          = '!' + xst // exists exactly once
-	xst           = '∃'       // exists
-	xsn           = '∄'
-	superSet      = '⊃'
-	noSuperSet    = '⊅'
-	subSet        = '⊂'
-	noSubSet      = '⊄'
-	union         = '⋂'
-	intrersection = '⋃'
-	successor     = '⊱'
-	predecessor   = '⊰'
-	unrelatet     = '¬'
+	all          = 'A'
+	ani          = '∀'
+	once         = '!' + exists // exists exactly once
+	exists       = '∃'          // exists
+	existsNot    = '∄'
+	superSet     = '⊃'
+	noSuperSet   = '⊅'
+	subSet       = '⊂'
+	noSubSet     = '⊄'
+	union        = '⋂'
+	intersection = '⋃'
+	successor    = '⊱'
+	predecessor  = '⊰'
+	unrelatet    = '¬'
+)
+
+var (
+	relationNames = map[Rln]Rune{
+		unrelatet:    '¬',
+		all:          'A',
+		ani:          '∀',
+		once:         '!',
+		exists:       '∃',
+		existsNot:    '∄',
+		superSet:     '⊃',
+		noSuperSet:   '⊅',
+		subSet:       '⊂',
+		noSubSet:     '⊄',
+		union:        '⋂',
+		intersection: '⋃',
+		successor:    '⊱',
+		predecessor:  '⊰',
+	}
 )
 
 func (r Rln) Ident() Item    { return r }
-func (r Rln) Type() Identity { return Operator }
+func (r Rln) Type() Identity { return Function }
 func (r Rln) Signature() T {
-	return T{Unrelated, Only, Any, All, Superset, NoSuperset, Subset,
-		NoSubset, Union, Intersection, Succeessor, Predecessor}
+	return T{r}
 }
 func (r Rln) Symbol() Str {
-	return Str(strings.Join([]string{string(all), string(ani), string(xst),
-		string(xsn), string(once), string(superSet), string(noSuperSet), string(subSet),
-		string(noSubSet), string(union), string(Intersection), string(successor), string(predecessor), string(unrelatet)}, "|"))
+	var s Rune
+	switch r {
+	case All:
+		s = all
+	case Any:
+		s = ani
+	case Once:
+		s = once
+	case Exists:
+		s = exists
+	case ExistsNot:
+		s = existsNot
+	case Superset:
+		s = superSet
+	case noSuperSet:
+		s = noSuperSet
+	case Subset:
+		s = subSet
+	case NoSubset:
+		s = noSubSet
+	case Union:
+		s = union
+	case Intersection:
+		s = intersection
+	case Succeessor:
+		s = successor
+	case Predecessor:
+		s = predecessor
+	}
+	return Str(s)
 }
 func (r Rln) Continue(args ...Item) (i Item, c Cnt) { return i, c }
 
