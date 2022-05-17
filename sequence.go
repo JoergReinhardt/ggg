@@ -18,7 +18,7 @@ func (s Seq) Symbol() Str {
 	}
 	return Str("(") + s.First().Type().Symbol() + (")")
 }
-func (s Seq) Signature() T {
+func (s Seq) Shape() T {
 	if len(s) > 0 {
 		return T{s[0].Type()}
 	}
@@ -50,16 +50,6 @@ func (v Seq) Range(s, e Int) Seq {
 		return v[s:e]
 	}
 	return nil
-}
-
-func (v Seq) FMap(f Fnc) Ident {
-	return Ident(func() Item {
-		for i, e := range v {
-			j := Ident(e.Ident).FMap(f)
-			v[i] = j
-		}
-		return v
-	})
 }
 func (v Seq) FoldEager(acc Item, f Fnc) (i Item) {
 	for _, elem := range v {
@@ -124,24 +114,12 @@ func (v Seq) Pair() Lnk {
 func ComposeS(args ...Item) Seq { return Seq(args) }
 
 // TODO: iterates on empty, eppends arguments
-func (s Seq) Continue(args ...Item) (i Item, c Cnt) {
-	if len(args) > 0 {
-		if len(s.Signature()) > 0 {
-			if a, _ := s.Signature()[0].Continue(args[0]); a != nil {
-				if len(args) > 1 {
-					return a, Condense(s.Continue(args[1:]...))
-				}
-				return a, s.Continue
-			}
-			return nil, Seq(args).Continue
-		}
-		if len(args) > 1 {
-			return args[0], Condense(s.Continue(args[1:]...))
-		}
-		return args[0], s.Continue
-	}
-	return s.Head(), s.Tail().Continue
-}
+//func (s Seq) Cons(args ...Item) (i Item, c Cnt) {
+//	if len(args) > 0 {
+//		return s.Head(), s.Tail().Cons
+//	}
+//	return s.Head(), s.Tail().Cons
+//}
 func ConcatS(s Seq, sqs ...Seq) Seq {
 	for _, seq := range sqs {
 		return append(s, seq...)

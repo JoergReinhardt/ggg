@@ -30,18 +30,14 @@ func (t Lnk) Sequence() Seq       { l, r := t(); return Seq{l, r} }
 func (u Lnk) Type() Identity      { return Pair }
 func (u Lnk) LeftType() Identity  { return u.Left().Type() }
 func (u Lnk) RightType() Identity { return u.Right().Type() }
-func (u Lnk) Signature() T        { f, s := u(); return T{Pair, T{f.Type(), s.Type()}} }
+func (u Lnk) Shape() T            { f, s := u(); return T{Pair, T{f.Type(), s.Type()}} }
 func (u Lnk) Symbol() Str         { return u.Left().Type().Symbol() }
-func (u Lnk) Continue(args ...Item) (Item, Cnt) {
+func (u Lnk) Cons(args ...Item) (Item, Cnt) {
 	if len(args) > 0 {
 		return ComposeLnk(u, args...), nil
 	}
-	return u.Left(), u.Continue
+	return u.Left(), u.Cons
 }
-
-func (u Lnk) FMap(f Fnc) Ident      { return Link(Ident(u.Left).FMap(f), Ident(u.Right).FMap(f)).Ident }
-func (u Lnk) FMapLeft(f Fnc) Ident  { return Link(Ident(u.Left).FMap(f), Ident(u.Right)).Ident }
-func (u Lnk) FMapRight(f Fnc) Ident { return Link(Ident(u.Left), Ident(u.Right).FMap(f)).Ident }
 
 ////////////////////////////////////////////////////////////////////////////////
 func Link(l, r Item) Lnk { return Lnk(func() (Item, Item) { return l, r }) }
@@ -92,7 +88,7 @@ func (t Lnk) GeneratePairs() (Item, Lnk) {
 
 	if f != nil {
 		if p != nil {
-			if Pair.Contains(p.Type().Signature()[0].(Cat)) {
+			if Pair.Contains(p.Type().Shape()[0].(Cat)) {
 				return f, p.(Lnk)
 			}
 			return f, Link(p, nil)
@@ -103,11 +99,11 @@ func (t Lnk) GeneratePairs() (Item, Lnk) {
 }
 
 func (t Lnk) Concat(args ...Item) Lnk { return ComposeLnk(t, args...) }
-func (t Lnk) Cons(args ...Item) (Item, Cnt) {
+func (t Lnk) cons(args ...Item) (Item, Cnt) {
 	if len(args) > 0 {
-		return t.Cons(args...)
+		return t.cons(args...)
 	}
-	return t, t.Cons
+	return t, t.cons
 }
 
 func (t Lnk) List() Lst {

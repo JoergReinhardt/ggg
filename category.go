@@ -29,9 +29,12 @@ const (
 	Comparative // Function resulting in Order ∷ Lesser|Equal|Greater
 	//////// PARAMETRIC FUNCTIONS (return type depends on arguments)
 	Choice      // T₁|T₂|…|Tₙ
-	Optional    // T|⊥
+	Optional    // ⊥|T
+	Variadic    // ⊥|T|[T]
 	Alternative // Either|Or
 	//////// PARAMETRIC/POLYMORPH CONTINUATION (return type depends on enclosed state)
+	Applicative
+	Continoid
 	Monoid
 	Monad
 	Arrow
@@ -39,18 +42,15 @@ const (
 	Error
 
 	// 'set contains all categories' ⇒ category identity
-	Category = Function | Class | Data | List | Sequence | Pair | Tuple | Record |
-		Conditional | Comparative | Choice | Alternative | Monoid | Monad | Arrow | Optic | Error
+	Category = Function | Class | Data | List | Sequence | Pair | Tuple |
+		Record | Conditional | Comparative | Choice | Alternative | Applicative |
+		Continoid | Monoid | Monad | Arrow | Optic | Error
 
 	ProductType = List | Sequence | Pair | Tuple | Record
 
-	SumType = Conditional | Comparative | Choice | Optional | Alternative
+	SumType = Conditional | Comparative | Choice | Optional | Variadic | Alternative
 
 	Functor = SumType | ProductType // data structure with default operation (mapF)
-
-	Applicative = Functor | Monoid
-
-	Continuum = Applicative | Monad | Arrow | Optic
 
 	// empty set of categories ⇒ class of categories ⇒  category & class unit
 	Nothing Cat = 0
@@ -62,12 +62,7 @@ const (
 // concatenated identity of the set of constants of type 'Cat'.  'Category' is
 // no member of that set, hence has no type and returns 'nil' to indicate root
 // of the type system instead.
-func (k Cat) Type() Identity {
-	if k == Category {
-		return nil
-	}
-	return Category
-}
+func (k Cat) Type() Identity { return nil }
 
 // a categoriy flags identify as tehemselves
 func (k Cat) Ident() Item { return k }
@@ -75,11 +70,11 @@ func (k Cat) Ident() Item { return k }
 // signature is the split set of OR concatenated set members for composed
 // types, or single element slice containing the atomic category dentoed by
 // flag.
-func (k Cat) Signature() (t T) {
+func (k Cat) Shape() (t T) {
 	if k.Composed() {
 		return k.Split()
 	}
-	return T{k}
+	return T{}
 }
 
 // Category Constructor
@@ -87,33 +82,34 @@ func (k Cat) Signature() (t T) {
 // Category ∷ Item… → _,_|Item,_|_,Category|Item, Category
 //    a∷Cat = Ta, _
 //   a!∷Cat = _,_
-//    a∷Cat…= Ta,Continue
-//        _ = Category, Continue
-func (k Cat) Continue(args ...Item) (i Item, c Cnt) {
+//    a∷Cat…= Ta,Cons
+//        _ = Category, Cons
+func (k Cat) Cons(args ...Item) (i Item, c Cnt) {
+
 	if len(args) > 0 {
-		var a Cat //‥set 't' to either
-		if args[0].Type().Type() != nil {
-			if args[0].Type().Type().Type() == nil {
-				a = args[0].Type().(Cat)
+		if args[0].Type() == nil {
+			if t, ok := args[0].(Cat); ok {
+				if k.Contains(t) {
+					i = args[0]
+				}
 			}
-		} else {
-			a = args[0].(Cat)
 		}
-		if k.Contains(a) { //‥return verified first argument & continue
-			if len(args) > 1 { //‥on argument remainder…
-				return args[0], Seq(args[1:]).Continue
-			} //‥or just yield argument and don't continue…
-			return args[0], nil
-		} //‥argument didn't match, return all args…
-		return nil, Seq(args).Continue
-	} //‥no arguments passed…
+		if len(args) > 1 {
+			c = Suspend(k.Cons, args[1:]...)
+		}
+		return i, c
+	}
+
+	// iterate over categories
 	if k == Category { //‥categories iedentity & continue on 'Nothing'
-		return k, Cat(0).Continue
+		return k, Cat(0).Cons
 	} //‥instance and continue on next…
+
 	if cardinality(Flag(k)) < cardinality(Flag(Category)) {
-		return k, Cat(k + 1<<1).Continue
+		return k, Cat(k + 1<<1).Cons
 	} //‥Nothing & continue on first category…
-	return Cat(0), Cat(1 << 1).Continue
+
+	return Cat(0), Cat(1 << 1).Cons
 }
 
 // EQUALITY

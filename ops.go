@@ -9,7 +9,7 @@ type (
 	Arm int8
 )
 
-//go:generate stringer -type Trh
+//go:generate stringer -type Trp
 const (
 	False     Trp = -1
 	Undefined Trp = 0
@@ -44,15 +44,15 @@ func (a Trp) Symbol() (s Str) {
 	}
 	return Str(undefined)
 }
-func (a Trp) Signature() (t T) { return T{a} }
-func (f Trp) Continue(as ...Item) (a Item, c Cnt) {
+func (a Trp) Shape() (t T) { return T{a} }
+func (f Trp) Cons(as ...Item) (a Item, c Cnt) {
 	if len(as) > 0 {
 		if len(as) > 1 {
 			if len(as) > 2 {
 			}
 		}
 	}
-	return f, T{False, Undefined, True}.Continue
+	return f, T{False, Undefined, True}.Cons
 }
 func (a Trp) Bool() Bool {
 	if a == True {
@@ -91,9 +91,9 @@ const (
 	neg = '¬'
 )
 
-func (a Lgc) Ident() (i Item)  { return a }
-func (a Lgc) Signature() (t T) { return T{And, Or, Xor, Nor, Neg} }
-func (a Lgc) Type() Identity   { return Operator }
+func (a Lgc) Ident() (i Item) { return a }
+func (a Lgc) Shape() (t T)    { return T{And, Or, Xor, Nor, Neg} }
+func (a Lgc) Type() Identity  { return Operator }
 func (a Lgc) Symbol() (s Str) {
 	switch a {
 	case Or:
@@ -113,7 +113,7 @@ func (a Lgc) Symbol() (s Str) {
 
 // operator constructor returns specific instances depending on argument type
 // and number of arguments passed. operator may possibly be partiolly applied.
-func (a Lgc) Continue(ts ...Item) (i Item, c Cnt) { // args have to be Identity
+func (a Lgc) Cons(ts ...Item) (i Item, c Cnt) { // args have to be Identity
 	if len(ts) > 0 {
 	}
 	return i, c
@@ -144,10 +144,10 @@ var orderNames = map[Ord]Rune{
 	MuchGreater: '≫',
 }
 
-func (o Ord) Ident() Item                         { return o }
-func (o Ord) Type() Identity                      { return Function }
-func (o Ord) Signature() T                        { return T{Operator} }
-func (o Ord) Continue(xs ...Item) (i Item, c Cnt) { return i, c }
+func (o Ord) Ident() Item                     { return o }
+func (o Ord) Type() Identity                  { return Function }
+func (o Ord) Shape() T                        { return T{Operator} }
+func (o Ord) Cons(xs ...Item) (i Item, c Cnt) { return i, c }
 func (o Ord) Symbol() Str {
 	var r Rune
 	switch o {
@@ -220,7 +220,7 @@ var (
 
 func (r Rln) Ident() Item    { return r }
 func (r Rln) Type() Identity { return Function }
-func (r Rln) Signature() T {
+func (r Rln) Shape() T {
 	return T{r}
 }
 func (r Rln) Symbol() Str {
@@ -255,9 +255,9 @@ func (r Rln) Symbol() Str {
 	}
 	return Str(s)
 }
-func (r Rln) Continue(args ...Item) (i Item, c Cnt) { return i, c }
+func (r Rln) Cons(args ...Item) (i Item, c Cnt) { return i, c }
 
-//go:generate stringer -type Ath
+//go:generate stringer -type Arm
 const (
 	Substract Arm = -1 + iota
 	Add
@@ -288,9 +288,9 @@ const (
 
 func (a Arm) Ident() Item    { return a }
 func (a Arm) Type() Identity { return Operator }
-func (a Arm) Signature() T {
+func (a Arm) Shape() T {
 	return T{Substract, Add, Multiply, Divide, Power, Sum, Product,
 		Coproduct, Root, NaryAdd, NaryDotMultiply, NaryXMultiply}
 }
-func (a Arm) Symbol() Str                           { return "" }
-func (a Arm) Continue(args ...Item) (i Item, c Cnt) { return i, c }
+func (a Arm) Symbol() Str                       { return "" }
+func (a Arm) Cons(args ...Item) (i Item, c Cnt) { return i, c }

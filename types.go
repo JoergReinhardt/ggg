@@ -23,9 +23,7 @@ type (
 	Identity interface {
 		Item
 		Symbolic
-		Type() Identity // return parent type
-		Signature() T   // subtypes of this type
-		Continue(...Item) (Item, Cnt)
+		Shape() T // subtypes of this type
 	}
 	// FUNCTOR (Applicable|Function|Monoid|Monad|…)
 	Applicable interface {
@@ -57,7 +55,7 @@ type (
 	// ARBITRARY TYPE|DATA CONSTRUCTOR
 	Constructor interface {
 		Item
-		Continue(...Item) (Item, Cnt)
+		Cons(...Item) (Item, Cnt)
 	}
 
 	// TYPE CLASSES
@@ -154,9 +152,9 @@ type (
 func normnalize(i Identity) (t T) {
 	if c := matchCategory(Category, i); c == nil { // passed identity is not fully normalized yet…
 		//‥normalize recursively
-		t = normnalize(T{i.Type(), i.Signature()})
+		t = normnalize(T{i.Type(), i.Shape()})
 	} // i is of type 'Cat' ⇔ return normalized type
-	return T{i, i.Signature()}
+	return T{i, i.Shape()}
 }
 
 //// SIGNATURE //////////////////////////////////////
@@ -165,30 +163,29 @@ func normnalize(i Identity) (t T) {
 //    encode the types data structure.
 func (s T) Ident() Item { return s }
 
-// Signature·Type → Type
+// Shape·Type → Type
 //
 //  type returns signatures first element, if there is one, or nil, if this is
 //  the empty signature.
-func (s T) Type() Identity {
-	if len(s) > 0 { // T[a,…] ⇔ T a
-		return s[0]
-	} // T[ ] ⇔ nil a
-	return Nothing
-}
+func (s T) Type() Identity { return T{} }
 
-// Signature·Signature → Type
-func (s T) Signature() T {
-	if len(s) > 1 {
-		if len(s) > 2 {
-			return s
-		}
-		return s[1:]
-	}
-	return T{}
-}
+// Shape·Shape → Type
+func (s T) Shape() T { return s }
 func (s T) Len() Int { return Int(len(s)) }
 
-// Signature·Sequence → Sequence
+func (t T) Cons(args ...Item) (i Item, c Cnt) {
+
+	//‥when called without parameters, iterates over elements…
+	if len(t) > 0 {
+		if len(t) > 1 {
+			return t[0], t[1:].Cons
+		}
+		return t[0], T{}.Cons
+	}
+	return T{}, nil
+}
+
+// Shape·Sequence → Sequence
 //
 //  sequence transforms the type fields of signatue, to instances of ident and
 //  wraps them in a flat sequence.
@@ -205,33 +202,33 @@ func (s T) List() Lst {
 	})
 }
 
-// Signature·Empty → Bool
+// Shape·Empty → Bool
 //
 // empty praedicate returns true, if signature doesn't contain any elements.
 func (s T) Empty() Bool { return len(s) == 0 }
 
-// Signature·Single → Bool
+// Shape·Single → Bool
 //
 // empty praedicate returns true, if signature consists of a single element.
 func (s T) Single() Bool { return len(s) == 1 }
 
-// Signature·Double → Bool
+// Shape·Double → Bool
 //
 // empty praedicate returns true, if signature consists of two single elements.
 func (s T) Paired() Bool { return len(s) == 2 }
 
-// Signature·Enum → Bool
+// Shape·Enum → Bool
 //
 // empty praedicate returns true, if signature contains more then two elements.
 func (s T) Many() Bool { return len(s) > 2 }
 
-// Signature·Generate → Identity Type
+// Shape·Generate → Identity Type
 //
 //  iterate yields first element of signature, or nil, for the first field of
 //  the return value pair and a list of remaining elements for the second
 //  field.
 
-// Signature·First → None|Identity
+// Shape·First → None|Identity
 //
 //  first element is either empty, in which case nil is returned, or the first
 //  element in signature, conscidered to be the type expressed by this
@@ -243,7 +240,7 @@ func (s T) First() Item {
 	return T{}
 }
 
-// Signature·Second → None|Identity|Identity.Type
+// Shape·Second → None|Identity|Identity.Type
 //
 //  second element is either empty, in which case nil is returned, a single
 //  type element, which gets returned as such, or multiple elements, wich will
@@ -274,7 +271,7 @@ func (s T) Preceding() T {
 	return T{}
 }
 
-// Signature·Flip → Sequence
+// Shape·Flip → Sequence
 //
 //  flip returns signatures fields converted to instances of ident and in
 //  reversed order.
@@ -285,46 +282,46 @@ func (s T) Flip() T {
 	return s
 }
 
-// Signature·Labels → [String]
+// Shape·Labels → [String]
 //
 //  labels returns signature fields printable symbols.
 func (s T) Symbols() []Str {
 	var names = make([]Str, 0, len(s))
-	for _, t := range s.Signature() {
+	for _, t := range s.Shape() {
 		names = append(names, t.(Identity).Symbol())
 	}
 	return names
 }
 
-// Signature·Labels → [string]
+// Shape·Labels → [string]
 //
 //  labels returns signature fields printable symbols.
 func (s T) strings() []string {
 	var names = make([]string, 0, len(s))
-	for _, t := range s.Signature() {
+	for _, t := range s.Shape() {
 		names = append(names, string(t.(Identity).Symbol()))
 	}
 	return names
 }
 
-// Signature·Symbol → Text
+// Shape·Symbol → Text
 //
 //  symbol yields printable representation of this signature.
 func (s T) Symbol() Str {
-	if o, _ := Optional.Continue(s.Type()); o != nil {
-		if len(s.Signature()) > 0 {
-			return o.Type().Signature()[0].Symbol() + Str("|⊥")
+	if o, _ := Optional.Cons(s.Type()); o != nil {
+		if len(s.Shape()) > 0 {
+			return o.Type().Shape()[0].Symbol() + Str("|⊥")
 		}
 		return Category.Symbol() + Str("|⊥")
 	}
-	if len(s.Signature()) > 0 {
-		if len(s.Signature()) > 1 {
+	if len(s.Shape()) > 0 {
+		if len(s.Shape()) > 1 {
 			if p := s.Type().Type(); p != nil {
 				return p.Symbol() + "·[" + Str(
-					strings.Join(p.Signature().strings(), "|")) + "]"
+					strings.Join(p.Shape().strings(), "|")) + "]"
 			}
 		}
-		return s.Type().Symbol() + "·" + s.Signature()[0].Symbol()
+		return s.Type().Symbol() + "·" + s.Shape()[0].Symbol()
 	}
 	return s.Type().Symbol()
 }
@@ -342,47 +339,15 @@ func (s T) Symbol() Str {
 // c _ a    = (a → a)
 
 // FoldMap  ∷ b & fold $ concat $ a * a|(a:as)
-
-//  continuation of a pattern presents its arguments to the constructors of
-//  it's set of parameters and returns all results produced, eventually
-//  replacing parameters in pattern with composals resulting from argument
-//  application
-func (t T) Continue(args ...Item) (i Item, c Cnt) {
-	if len(args) > 0 {
-		if len(t) > 0 { //‥pattern not yet depletet…
-			if i, c = t[0].Continue(args[0]); i != nil {
-				if len(args) > 1 { //‥more arguments to process…
-					if c != nil {
-						c = Condense(c(args[1:]...))
-						if len(t) > 1 { //‥more constructors to test…
-							c = Concat(c, t[1:])
-						}
-					}
-				}
-			}
-			return i, c // one of which, or both mybe nil
-		} //‥arguments didn't match, or pattern depletet → (nil args…)
-		return nil, Seq(args).Continue
-	}
-	//‥when called without arguments, iterate over parameter
-	if len(t) > 0 {
-		if len(t) > 1 {
-			return t[0], t[1:].Continue
-		}
-		return t[0], T{}.Continue
-	}
-	return T{}, T{}.Continue
-}
-
 /// INDEX //////////////////////////////////////////////////////////////////////
-func IndexFromFlag(f Flag) Index                      { return Index(f.Len()) }
-func (i Index) Ident() Item                           { return i }
-func (i Index) Type() Identity                        { return nil }
-func (i Index) Signature() T                          { return T{i, Integer} }
-func (i Index) Symbol() Str                           { return Str("[" + fmt.Sprintf("%d", int(i)) + "]") }
-func (i Index) FtoI(f Flag) Index                     { return Index(f.Len()) }
-func (i Index) Flag() Flag                            { return Flag(1 << i) }
-func (a Index) Continue(args ...Item) (i Item, c Cnt) { return i, c }
+func IndexFromFlag(f Flag) Index                  { return Index(f.Len()) }
+func (i Index) Ident() Item                       { return i }
+func (i Index) Type() Identity                    { return nil }
+func (i Index) Shape() T                          { return T{i, Integer} }
+func (i Index) Symbol() Str                       { return Str("[" + fmt.Sprintf("%d", int(i)) + "]") }
+func (i Index) FtoI(f Flag) Index                 { return Index(f.Len()) }
+func (i Index) Flag() Flag                        { return Flag(1 << i) }
+func (a Index) Cons(args ...Item) (i Item, c Cnt) { return i, c }
 
 // NAME ///////////////////////////////////////////////////////////////////////
 func splitName(name Name) (names []string) {
@@ -442,7 +407,7 @@ func splitName(name Name) (names []string) {
 
 func (n Name) Ident() Item    { return n }
 func (n Name) Type() Identity { return nil }
-func (n Name) Signature() T   { return T{n, String} }
+func (n Name) Shape() T       { return T{n, String} }
 func (n Name) Symbol() Str    { return Str(n) }
 func (n Name) Atom() Bool     { return !n.Composed() }
 func (n Name) Composed() Bool {
@@ -492,7 +457,7 @@ func (n Name) Len() int {
 	return 1
 }
 
-// Name·Cons(...Ident) → Identity Continue
+// Name·Cons(...Ident) → Identity Cons
 //
 //  default behaviour of name cons called empty, is to return the instance and
 //  it's cons method.  when called with arguments, cons will test those to be
@@ -501,16 +466,6 @@ func (n Name) Len() int {
 //  instanciate type & either nil if single argument was given, or succeeding
 //  arguments enclosed in a continuation constructor, in case multiple
 //  arguments where passed.
-func (n Name) Continue(args ...Item) (Item, Cnt) {
-	if len(args) > 0 {
-		// validate first argument to be either category, or class
-		// is not contained in n, or no label at all → return nil and
-		// all arguments.
-		return nil, Seq(args).Continue
-	}
-	// empty call → name & continuation
-	return n, n.Continue
-}
 
 ////////////////////////////////////////////////////////////////////////
 //// FLAG SET
@@ -557,7 +512,7 @@ func split(t Flag) []Flag {
 
 func (f Flag) Ident() Item    { return f }
 func (f Flag) Type() Identity { return nil }
-func (f Flag) Signature() T {
+func (f Flag) Shape() T {
 	if f.Atom() {
 		return T{f}
 	}
@@ -584,47 +539,4 @@ func (f Flag) Split() T {
 		return v
 	}
 	return T{f}
-}
-func (f Flag) Continue(args ...Item) (i Item, c Cnt) {
-	if len(args) > 0 {
-		// validate first argument to be a flag…
-		if flag, ok := args[0].(Flag); ok {
-			// handle multiple arguments…
-			if len(args) > 1 {
-				// ‥construct an instance of the type expressed
-				// in first argument & use its constructor to
-				// parameterize remaining arguments.
-				if i, c = f.Continue(flag); i != nil {
-					return i, Cnt(func(next ...Item) (Item, Cnt) {
-						if len(next) > 0 {
-							return i.(Flag).Continue(
-								append(args, next...)...)
-						}
-						return i.(Flag).Continue(args...)
-					})
-				}
-				// ‥argument is a flag not contained in f → no
-				// instance & sequence of arguments
-				return nil, c
-			}
-			// validate flag to be contained in f…
-			if f.Contains(flag) {
-				// ‥return argument validated to be some flag
-				// as identity.  don't return continuation,
-				// more arguments to return.
-				return args[0], nil
-			}
-		}
-		// first argument did not validate as flag and|or instance
-		// construction failed → don't return identity, continue with
-		// arguments.
-		return nil, Seq(args).Continue
-
-	}
-	// empty call on atomic flag → as such and it's continuation
-	if f.Atom() {
-		return f, f.Continue
-	}
-	// empty call on composed flag → split and continue on signature
-	return f, f.Continue
 }
