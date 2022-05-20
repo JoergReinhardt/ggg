@@ -113,12 +113,28 @@ func (t Lnk) List() Lst {
 	})
 }
 
-func MapFLink(l Lnk, f Fnc) Lnk {
-	o, p := l.GeneratePairs()
-	if p != nil {
-		return Link(f(o), MapFLink(p, f))
+func MapFLnk(p Lnk, f Fnc) Lnk {
+
+	l, r := p()
+
+	if l != nil && r != nil {
+		return Link(f(l), f(r))
 	}
-	return Link(f(o), f(p))
+	if r == nil {
+		return Link(l, f(l))
+	}
+	if l == nil {
+		return Link(f(r), r)
+	}
+	return nil
+}
+func FoldLnk(l Lnk, f Fnc) Cnt {
+	return Cnt(func(args ...Item) (Item, Cnt) {
+		if len(args) > 0 {
+			return f(append(Seq{l}, args...)...), nil
+		}
+		return f(l), nil
+	})
 }
 
 // RIGHT COUPLED PAIR

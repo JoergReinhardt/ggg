@@ -79,8 +79,8 @@ func (d Dat) Cons(args ...Item) (i Item, c Cnt) {
 	} // ‥or wraps around to zero element of monoidal ring
 	return Dat(0), Dat(1).Cons
 }
-func (d Dat) Len() Int      { return Int(magnitude(Flag(d))) }
-func (d Dat) Number() Index { return Index(cardinality(d.Flag()) - 1) }
+func (d Dat) Len() Int    { return Int(magnitude(Flag(d))) }
+func (d Dat) Number() Int { return Int(cardinality(d.Flag()) - 1) }
 func (c Dat) Symbol() Str {
 	if magnitude(Flag(c)) > 1 {
 		s := make([]string, 0, magnitude(Flag(c)))

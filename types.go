@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"math/bits"
 	"strconv"
 	"strings"
@@ -131,30 +130,43 @@ type (
 	}
 
 	// IDENTITY LABLE TYPES
-	//  label types scrutinize arguments to either be labels as well, in
-	//  which case they are either retuned, when equal to, or contained in
-	//  argument(s), or instances of a type representet by the same kind of
-	//  type label and if it is equal, or contained.  if argument or lable
-	//  coul be validated, it is returned without continuation. if its not
-	//  matched, no result is generated, aand sequence of arguments is
-	//  returned as continuation.  if result and continuation are returned,
-	//  result is conscidered partial and computation needs additional
-	//  arguments, or empty applications in order to complete it.
-	Index Int
 	Flag  Unt
 	Name  Str
+	Names map[Name]int
 
-	// SIGNATURE TYPE
-	//  generic type expression
 	T []Identity
 )
 
-func normnalize(i Identity) (t T) {
-	if c := matchCategory(Category, i); c == nil { // passed identity is not fully normalized yet…
-		//‥normalize recursively
-		t = normnalize(T{i.Type(), i.Shape()})
-	} // i is of type 'Cat' ⇔ return normalized type
-	return T{i, i.Shape()}
+func isRoot(i Item) Bool {
+	return i.Type() == nil
+}
+func isPattern(i Item) Bool {
+	return isRoot(i) && i.Type().Shape() != nil && len(i.Type().Shape()) == 0
+}
+func isIdentity(i Item) Bool {
+	return isRoot(i) && i.Type().Shape() != nil && len(i.Type().Shape()) == 1
+}
+func isFlag(i Item) Bool {
+	if isIdentity(i) && isCat(i, Data) {
+		return i.(Dat) == Unsigned
+	}
+	return false
+}
+func isName(i Item) Bool {
+	if isIdentity(i) && isCat(i, Data) {
+		return i.(Dat) == String
+	}
+	return false
+}
+func isClass(i Item) Bool {
+	return isRoot(i) && i.Type().Shape() != nil && len(i.Type().Shape()) > 1
+}
+func isCat(i Item, c Cat) Bool {
+	if !isRoot(i) { //‥item itself not a category…
+		//‥item type is category… ‥contained in 'c'?
+		return isRoot(i.Type()) && c.Contains(i.Type().(Cat))
+	}
+	return false
 }
 
 //// SIGNATURE //////////////////////////////////////
@@ -167,10 +179,10 @@ func (s T) Ident() Item { return s }
 //
 //  type returns signatures first element, if there is one, or nil, if this is
 //  the empty signature.
-func (s T) Type() Identity { return T{} }
+func (s T) Type() Identity { return nil }
 
 // Shape·Shape → Type
-func (s T) Shape() T { return s }
+func (s T) Shape() T { return T{} }
 func (s T) Len() Int { return Int(len(s)) }
 
 func (t T) Cons(args ...Item) (i Item, c Cnt) {
@@ -339,15 +351,6 @@ func (s T) Symbol() Str {
 // c _ a    = (a → a)
 
 // FoldMap  ∷ b & fold $ concat $ a * a|(a:as)
-/// INDEX //////////////////////////////////////////////////////////////////////
-func IndexFromFlag(f Flag) Index                  { return Index(f.Len()) }
-func (i Index) Ident() Item                       { return i }
-func (i Index) Type() Identity                    { return nil }
-func (i Index) Shape() T                          { return T{i, Integer} }
-func (i Index) Symbol() Str                       { return Str("[" + fmt.Sprintf("%d", int(i)) + "]") }
-func (i Index) FtoI(f Flag) Index                 { return Index(f.Len()) }
-func (i Index) Flag() Flag                        { return Flag(1 << i) }
-func (a Index) Cons(args ...Item) (i Item, c Cnt) { return i, c }
 
 // NAME ///////////////////////////////////////////////////////////////////////
 func splitName(name Name) (names []string) {
@@ -407,7 +410,7 @@ func splitName(name Name) (names []string) {
 
 func (n Name) Ident() Item    { return n }
 func (n Name) Type() Identity { return nil }
-func (n Name) Shape() T       { return T{n, String} }
+func (n Name) Shape() T       { return T{String} }
 func (n Name) Symbol() Str    { return Str(n) }
 func (n Name) Atom() Bool     { return !n.Composed() }
 func (n Name) Composed() Bool {
@@ -455,6 +458,44 @@ func (n Name) Len() int {
 		return 0
 	}
 	return 1
+}
+
+// Names
+func (n Names) Ident() Item    { return n }
+func (n Names) Type() Identity { return n }
+func (n Names) Shape() T       { return T{T{Sequence, Category}} }
+func (n Names) Names() []Name {
+	var (
+		i  = 0
+		ns = make([]Name, 0, len(n))
+	)
+	for n := range n {
+		ns[i] = n
+		i++
+	}
+	return ns
+}
+func (n Names) Pairs() []Lnk {
+	var (
+		i  = 0
+		ls = make([]Lnk, 0, len(n))
+	)
+	for k, v := range n {
+		ls[i] = Lnk(func() (l, r Item) { return k, Int(v) })
+		i++
+	}
+	return ls
+}
+func (n Names) Symbol() Str {
+	var (
+		i    = 0
+		strs = make([]string, 0, len(n))
+	)
+	for n := range n {
+		strs[i] = string(n)
+		i++
+	}
+	return Str(strings.Join(strs, "|"))
 }
 
 // Name·Cons(...Ident) → Identity Cons
@@ -513,10 +554,7 @@ func split(t Flag) []Flag {
 func (f Flag) Ident() Item    { return f }
 func (f Flag) Type() Identity { return nil }
 func (f Flag) Shape() T {
-	if f.Atom() {
-		return T{f}
-	}
-	return f.Split()
+	return T{Unsigned}
 }
 func (f Flag) Eq(a Flag) Bool       { return Bool(f == a) }
 func (f Flag) Lesser(a Flag) Bool   { return Bool(f < a) }

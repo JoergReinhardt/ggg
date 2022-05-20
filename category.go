@@ -74,7 +74,7 @@ func (k Cat) Shape() (t T) {
 	if k.Composed() {
 		return k.Split()
 	}
-	return T{}
+	return nil
 }
 
 // Category Constructor

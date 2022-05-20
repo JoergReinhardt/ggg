@@ -25,17 +25,15 @@ func _() {
 	_ = x[Assign-16384]
 	_ = x[Scope-32768]
 	_ = x[Apply-65536]
-	_ = x[Curry-131072]
-	_ = x[Unary-262144]
-	_ = x[Nary-524288]
-	_ = x[Bind-1048576]
-	_ = x[Eval-2097152]
-	_ = x[Map-4194304]
-	_ = x[Dot-8388608]
+	_ = x[Unary-131072]
+	_ = x[Nary-262144]
+	_ = x[Eval-524288]
+	_ = x[Map-1048576]
+	_ = x[Dot-2097152]
 	_ = x[Nop-0]
 }
 
-const _Fat_name = "NopExpressionParametricParameterPolymorphConstrainOperatorArgumentNullaryPatternPartialReverseLambdaFixityResultAssignScopeApplyCurryUnaryNaryBindEvalMapDot"
+const _Fat_name = "NopExpressionParametricParameterPolymorphConstrainOperatorArgumentNullaryPatternPartialReverseLambdaFixityResultAssignScopeApplyUnaryNaryEvalMapDot"
 
 var _Fat_map = map[Fat]string{
 	0:       _Fat_name[0:3],
@@ -57,12 +55,10 @@ var _Fat_map = map[Fat]string{
 	32768:   _Fat_name[118:123],
 	65536:   _Fat_name[123:128],
 	131072:  _Fat_name[128:133],
-	262144:  _Fat_name[133:138],
-	524288:  _Fat_name[138:142],
-	1048576: _Fat_name[142:146],
-	2097152: _Fat_name[146:150],
-	4194304: _Fat_name[150:153],
-	8388608: _Fat_name[153:156],
+	262144:  _Fat_name[133:137],
+	524288:  _Fat_name[137:141],
+	1048576: _Fat_name[141:144],
+	2097152: _Fat_name[144:147],
 }
 
 func (i Fat) String() string {

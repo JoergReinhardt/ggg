@@ -2,7 +2,39 @@ package main
 
 // SEQUENCE OF ITEMS
 // TODO: implement slice tricks: https://ueokande.github.io/go-slice-tricks/
-type Seq []Item             // cons∷f(*…)→v|pure∷f(v)→*…|unit∷f(v *ₜ)→v
+type (
+	Seq []Item // cons∷f(*…)→v|pure∷f(v)→*…|unit∷f(v *ₜ)→v
+)
+
+func FMapSeq(s Seq, f Fnc) (r Seq) {
+	r = make(Seq, 0, len(s))
+	for n, i := range s {
+		r[n] = Fnc(func(args ...Item) Item {
+			if len(args) > 0 {
+				return f(append(Seq{i}, args...)...)
+			}
+			return f(s)
+		})
+	}
+	return r
+}
+
+func FoldSeq(s Seq, f Fnc) Seq {
+
+	r := Seq{}
+
+	for _, i := range s {
+
+		e := f(i)
+
+		if e != nil {
+			r = append(r, e)
+		}
+	}
+
+	return r
+}
+
 func SequenceIdentity() Seq { return Seq{} }
 func EmptySequence() Seq    { return Seq{} }
 

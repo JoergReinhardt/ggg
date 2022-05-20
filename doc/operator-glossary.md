@@ -169,6 +169,7 @@ Applicative function application <*>
 
 Commonly seen with <$>, <*> is an operator that applies a wrapped function to a
 wrapped value. It is part of the Applicative typeclass, and is very often seen
+
 in code like the following:
 
 foo <$> bar <*> baz
@@ -177,12 +178,14 @@ For cases when you're dealing with a Monad, this is equivalent to:
 do x <- bar
    y <- baz
    return (foo x y)
+
 Other common examples including parsers and serialization libraries. Here's an
 example you might see using the aeson package:
 
 data Person = Person { name :: Text, age :: Int } deriving Show
 
 -- We expect a JSON object, so we fail at any non-Object value.
+
 instance FromJSON Person where
     parseJSON (Object v) = Person <$> v .: "name" <*> v .: "age"
     parseJSON _ = empty
@@ -213,9 +216,9 @@ a1 <* a2 = do
     return res
 Various monadic binding/composition operators
 
+(>>)  :: Monad m => m a -> m b -> m b
 (>>=) :: Monad m => m a -> (a -> m b) -> m b
 (=<<) :: Monad m => (a -> m b) -> m a -> m b
-(>>) :: Monad m => m a -> m b -> m b
 (>=>) :: Monad m => (a -> m b) -> (b -> m c) -> (a -> m c)
 (<=<) :: Monad m => (b -> m c) -> (a -> m b) -> (a -> m c)
 
@@ -235,6 +238,7 @@ m1 >> m2 = do
 f =<< m1 = do
     x <- m1
     f x
+
 In addition to these two operators, there are also composition operators for
 when you have two monadic functions. >=> pipes the result from the left side to
 the right side, while <=< pipes the result the other way. In other words:
@@ -248,6 +252,7 @@ g <=< f = \x -> do
     g y
 
 f >=> g = g <=< f
+
 g >=> f = f <=< g
 
 Alternative <|>
@@ -273,7 +278,8 @@ main = do
         (Concurrently (threadDelay 2000000 >> return (Right 42)))
     print res
   
-whenever i feel overwhelmed by haskell syntax, i remind myself how much more disturbing notation can be:
+whenever i feel overwhelmed by haskell syntax, i remind myself how much more
+disturbing notation can be:
 
 API
 

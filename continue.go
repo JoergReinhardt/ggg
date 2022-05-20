@@ -1,17 +1,14 @@
 package main
 
 type (
-	// CONTINUATION
 	Cnt func(as ...Item) (b Item, m Cnt) // continuation (monad|monoid)
 
-	// HIGHER ORDER FUNCTION COMPOSITION
 	BindFnc func(ta, tb Monoton) (m Cnt)                          // bind applicative functors do define monad
 	DoFnc   func(ta, tb Monoton, as ...Item) (a Item, ma, mb Cnt) // forall|forany a → ma → mb	Do∷(<<)|(>>)∷Then
 
 	Zip func(...Item) (l, r Cnt)
 )
 
-// identity & instanciation
 func (c Cnt) Ident() Item    { return c }
 func (c Cnt) Type() Identity { return Function }
 func (c Cnt) Shape() T {
@@ -24,78 +21,31 @@ func (c Cnt) Symbol() Str { return Str("⊥|*|[*] → ⨍ → *|⊥, ⨍|⊥") }
 ////////////////////////////////////////////////////////////////////////////////
 // CONTINUITY FREE FUNCTIONS
 //
-// resume continuation by evaluating its 'weak normal form', aka. application
-// without any arguments, to reveal current head and its immediate successor.
-func Resume(c Cnt) (Item, Cnt) { return c() }
-
-// condense new head item with existing coninuation
 func Condense(i Item, c Cnt) Cnt {
-	return Cnt(func(as ...Item) (Item, Cnt) {
-		if len(as) > 0 {
-			return Concat(c, i)(as...)
+	return Cnt(func(args ...Item) (Item, Cnt) {
+		if len(args) > 0 {
+			return Condense(i, c)(args...)
 		}
 		return i, c
 	})
 }
 
 // suspends application of arguments to continuation
-func Suspend(c Cnt, args ...Item) Cnt {
-	return Cnt(func(srgs ...Item) (Item, Cnt) {
-		if len(srgs) > 0 {
-			args = append(args, srgs...)
-		}
+
+func Suspend(c Cnt, spnd ...Item) Cnt {
+
+	return Cnt(func(args ...Item) (Item, Cnt) {
+
 		if len(args) > 0 {
-			return c(args...)
+			return Suspend(c, spnd...)(args...)
 		}
-		return c()
+
+		return c(spnd...)
 	})
 }
 
-// consume arguments, apply tail function to head element and return resulting
-// value and continuation
-func Consume(a Cnt) (i Item, c Cnt) {
-	if i, c = a(); c != nil && i != nil {
-		return c(i)
-	}
-	if c != nil {
-		return c()
-	}
-	return i, c
-}
-
-// reduce continuation by consuming arguments and condensing the results.
-func Reduce(c Cnt, args ...Item) Cnt { return Condense(c(args...)) }
-
-// cocatenate, by condensing passed continuation with first item in argument
-// set recursively.
-func Concat(c Cnt, args ...Item) Cnt {
-	if len(args) > 0 {
-		if len(args) > 1 {
-			Concat(Condense(args[0], c), args[1:]...)
-		}
-		return Condense(args[0], c)
-	}
-	return c
-}
-
-func FoldR(acc, f Cnt, args ...Item) (i Item, t Cnt) {
-skip:
-	if f == nil {
-		return acc()
-	}
-	i, f = f(args...)
-	if i != nil {
-		i, acc = acc(i)
-	}
-	if i == nil {
-		goto skip
-	}
-	return i, Condense(FoldR(acc, f))
-}
-
-////////////////////////////////////////////////////////////////////////////////
-// EXAMPLE FUNCTORMAP
-//main :: IO ()
+// class Functor f where
+//    fmap :: (a -> b) -> f a -> f b
 //
 //main = putStrLn $ "hello " <> "there " <> "world!"
 //
